@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -45,3 +48,14 @@ jobs:
           name: ReadingTracker-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
+
+      - name: Publish APK to Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk ReadingTracker.apk
+          gh release delete latest --cleanup-tag -y || true
+          gh release create latest ReadingTracker.apk \
+            --title "Трекер чтения (последняя сборка)" \
+            --notes "Скачайте ReadingTracker.apk и установите на телефон." \
+            --target "${{ github.sha }}"
