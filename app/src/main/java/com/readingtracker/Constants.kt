@@ -37,11 +37,14 @@ object Constants {
         for (info in installed) {
             val pkg = info.activityInfo.packageName
             if (pkg == context.packageName) continue
-            KNOWN_PACKAGES[pkg]?.let { result[pkg] = it; continue }
-            val label = info.loadLabel(pm).toString().lowercase()
-            LABEL_KEYWORDS.entries.firstOrNull { label.contains(it.key) }?.let {
-                result[pkg] = it.value
+            val known = KNOWN_PACKAGES[pkg]
+            if (known != null) {
+                result[pkg] = known
+                continue
             }
+            val label = info.loadLabel(pm).toString().lowercase()
+            val match = LABEL_KEYWORDS.entries.firstOrNull { label.contains(it.key) }
+            if (match != null) result[pkg] = match.value
         }
         return result
     }
