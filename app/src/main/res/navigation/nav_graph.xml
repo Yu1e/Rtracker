@@ -15,4 +15,9 @@
         android:name="com.readingtracker.ui.stats.StatsFragment"
         android:label="Статистика" />
 
+    <fragment
+        android:id="@+id/diagFragment"
+        android:name="com.readingtracker.ui.diag.DiagFragment"
+        android:label="Проверка" />
+
 </navigation>

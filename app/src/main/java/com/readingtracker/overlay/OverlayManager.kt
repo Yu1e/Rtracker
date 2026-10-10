@@ -6,6 +6,8 @@ import android.os.Build
 import android.view.*
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
+import androidx.appcompat.view.ContextThemeWrapper
+import com.readingtracker.diag.Diag
 import com.readingtracker.R
 import com.readingtracker.data.AppDatabase
 import com.readingtracker.data.Book
@@ -33,7 +35,8 @@ class OverlayManager(private val context: Context) {
     ) {
         hide()
 
-        val inflater = LayoutInflater.from(context)
+        // Компоненты Material требуют тему оформления, у службы её нет
+        val inflater = LayoutInflater.from(ContextThemeWrapper(context, R.style.Theme_ReadingTracker))
 
         if (rememberedBookId != null) {
             showContinueOrNew(
@@ -144,8 +147,13 @@ class OverlayManager(private val context: Context) {
             }
         }
 
-        wm.addView(view, params)
-        currentView = view
+        try {
+            wm.addView(view, params)
+            currentView = view
+            Diag.set(context, Diag.EVENT, "${Diag.time()} пузырёк показан")
+        } catch (e: Exception) {
+            Diag.set(context, Diag.ERROR, "${Diag.time()} addView: ${e}")
+        }
     }
 
     fun hide() {

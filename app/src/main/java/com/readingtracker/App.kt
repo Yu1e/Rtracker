@@ -4,11 +4,22 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import android.util.Log
+import com.readingtracker.diag.Diag
 
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            try {
+                Diag.prefs(this).edit()
+                    .putString(Diag.ERROR, Diag.time() + " ПАДЕНИЕ\n" + Log.getStackTraceString(error).take(3000))
+                    .commit()
+            } catch (_: Throwable) {}
+            previous?.uncaughtException(thread, error)
+        }
     }
 
     private fun createNotificationChannel() {

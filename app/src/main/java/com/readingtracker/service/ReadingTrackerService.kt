@@ -12,6 +12,7 @@ import com.readingtracker.R
 import com.readingtracker.data.AppDatabase
 import com.readingtracker.data.Book
 import com.readingtracker.data.ReadingSession
+import com.readingtracker.diag.Diag
 import com.readingtracker.overlay.OverlayManager
 import kotlinx.coroutines.*
 
@@ -36,6 +37,7 @@ class ReadingTrackerService : Service() {
     private var activeSessionId: Long? = null
 
     private var isScreenOn = true
+    private var lastReportedPkg: String? = null
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -56,7 +58,12 @@ class ReadingTrackerService : Service() {
 
     private val pollRunnable = object : Runnable {
         override fun run() {
-            try { pollForegroundApp() } catch (_: Exception) {}
+            try {
+                pollForegroundApp()
+                Diag.set(this@ReadingTrackerService, Diag.HEARTBEAT, Diag.time())
+            } catch (e: Exception) {
+                Diag.set(this@ReadingTrackerService, Diag.ERROR, "${Diag.time()} опрос: $e")
+            }
             handler.postDelayed(this, Constants.POLL_INTERVAL_MS)
         }
     }
@@ -66,6 +73,8 @@ class ReadingTrackerService : Service() {
         db = AppDatabase.getInstance(this)
         overlay = OverlayManager(this)
         trackedApps = Constants.detectTrackedApps(this)
+        Diag.set(this, Diag.TRACKED,
+            if (trackedApps.isEmpty()) "ни одной" else trackedApps.entries.joinToString("\n") { "${it.value} (${it.key})" })
         lastEventTime = System.currentTimeMillis() - 60_000
 
         registerReceiver(screenReceiver, IntentFilter().apply {
@@ -119,6 +128,10 @@ class ReadingTrackerService : Service() {
         }
 
         val pkg = currentForegroundPkg
+        if (pkg != null && pkg != lastReportedPkg) {
+            lastReportedPkg = pkg
+            Diag.set(this, Diag.FOREGROUND, "${Diag.time()} $pkg")
+        }
         // Наш собственный оверлей/приложение не прерывают чтение
         if (pkg == packageName) return
 
@@ -148,7 +161,9 @@ class ReadingTrackerService : Service() {
             val rememberedBookId = db.sessionDao().getLastBookIdForApp(pkg)
             val appName = trackedApps[pkg] ?: pkg
 
+            Diag.set(this@ReadingTrackerService, Diag.EVENT, "${Diag.time()} вход в $appName")
             withContext(Dispatchers.Main) {
+              try {
                 overlay.show(
                     appName = appName,
                     rememberedBookId = rememberedBookId,
@@ -168,6 +183,9 @@ class ReadingTrackerService : Service() {
                     },
                     onDismiss = { overlay.hide() }
                 )
+              } catch (e: Exception) {
+                Diag.set(this@ReadingTrackerService, Diag.ERROR, "${Diag.time()} пузырёк: $e")
+              }
             }
         }
     }
