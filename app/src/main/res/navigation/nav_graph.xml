@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/booksFragment">
+
+    <fragment
+        android:id="@+id/booksFragment"
+        android:name="com.readingtracker.ui.books.BooksFragment"
+        android:label="Книги" />
+
+    <fragment
+        android:id="@+id/statsFragment"
+        android:name="com.readingtracker.ui.stats.StatsFragment"
+        android:label="Статистика" />
+
+</navigation>
