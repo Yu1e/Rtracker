@@ -28,7 +28,16 @@ jobs:
           gradle-version: '8.6'
 
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: |
+          set -o pipefail
+          gradle assembleDebug --stacktrace 2>&1 | tee build.log
+
+      - name: Show errors as annotations
+        if: failure()
+        run: |
+          grep -E "^e: |error:|What went wrong|Execution failed|AAPT|Unresolved|Caused by" -A2 build.log | head -40 | while IFS= read -r line; do
+            echo "::error::${line//%/%25}"
+          done
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
