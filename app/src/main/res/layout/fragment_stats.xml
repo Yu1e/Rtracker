@@ -1,151 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
     <LinearLayout
+        android:id="@+id/container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Статистика"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
-
-        <!-- This month -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="В этом месяце"
-            android:textSize="14sp"
-            android:textColor="#888"
-            android:textAllCaps="true"
-            android:layout_marginBottom="4dp" />
-
-        <TextView android:id="@+id/tvMonthDays"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="2dp" />
-
-        <TextView android:id="@+id/tvMonthTime"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="2dp" />
-
-        <TextView android:id="@+id/tvMonthBooks"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="16dp" />
-
-        <!-- Streaks -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Стрики"
-            android:textSize="14sp"
-            android:textColor="#888"
-            android:textAllCaps="true"
-            android:layout_marginBottom="4dp" />
-
-        <TextView android:id="@+id/tvStreakCurrent"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="2dp" />
-
-        <TextView android:id="@+id/tvStreakBest"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="16dp" />
-
-        <!-- All time -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="За всё время"
-            android:textSize="14sp"
-            android:textColor="#888"
-            android:textAllCaps="true"
-            android:layout_marginBottom="4dp" />
-
-        <TextView android:id="@+id/tvTotalBooks"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="2dp" />
-
-        <TextView android:id="@+id/tvTotalTime"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="2dp" />
-
-        <TextView android:id="@+id/tvAvgMean"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="2dp" />
-
-        <TextView android:id="@+id/tvAvgMedian"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="2dp" />
-
-        <TextView android:id="@+id/tvMonthMedian"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="16dp"
-            android:visibility="gone" />
-
-        <!-- Top authors -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Авторы"
-            android:textSize="14sp"
-            android:textColor="#888"
-            android:textAllCaps="true"
-            android:layout_marginBottom="4dp" />
-
-        <TextView android:id="@+id/tvTopAuthors"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="16dp" />
-
-        <!-- By app -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="По приложениям"
-            android:textSize="14sp"
-            android:textColor="#888"
-            android:textAllCaps="true"
-            android:layout_marginBottom="4dp" />
-
-        <TextView android:id="@+id/tvStatsByApp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="24dp" />
-
-        <Button
-            android:id="@+id/btnRefresh"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Обновить" />
-
-    </LinearLayout>
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="32dp" />
 </ScrollView>

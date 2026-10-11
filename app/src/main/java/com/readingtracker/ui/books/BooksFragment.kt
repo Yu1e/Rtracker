@@ -2,12 +2,11 @@ package com.readingtracker.ui.books
 
 import android.os.Bundle
 import android.view.*
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.readingtracker.data.Book
 import com.readingtracker.databinding.FragmentBooksBinding
+import com.readingtracker.ui.book.BookActivity
 
 class BooksFragment : Fragment() {
 
@@ -22,8 +21,8 @@ class BooksFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val adapter = BooksAdapter(
-            onStatusChange = { book, status -> vm.setStatus(book, status) },
-            onDelete = { book -> confirmDelete(book) }
+            onOpen = { book -> BookActivity.open(requireContext(), book.id) },
+            onStatusChange = { book, status -> vm.setStatus(book, status) }
         )
         b.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         b.recyclerView.adapter = adapter
@@ -32,15 +31,8 @@ class BooksFragment : Fragment() {
             adapter.submitList(list)
             b.tvEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
         }
-    }
 
-    private fun confirmDelete(book: Book) {
-        AlertDialog.Builder(requireContext())
-            .setTitle("Удалить книгу?")
-            .setMessage("«${book.title}» будет удалена из списка. Это действие нельзя отменить.")
-            .setPositiveButton("Удалить") { _, _ -> vm.deleteBook(book) }
-            .setNegativeButton("Отмена", null)
-            .show()
+        b.fabAdd.setOnClickListener { BookActivity.create(requireContext()) }
     }
 
     override fun onDestroyView() {

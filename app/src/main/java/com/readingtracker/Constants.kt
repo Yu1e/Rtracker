@@ -49,7 +49,22 @@ object Constants {
         return result
     }
 
+    /** Варианты «где читаю» для ручного добавления: название → package. */
+    fun sourceOptions(context: Context): List<Pair<String, String>> {
+        val detected = detectTrackedApps(context)
+        fun pkgFor(name: String, fallback: String) =
+            detected.entries.firstOrNull { it.value == name }?.key ?: fallback
+        return listOf(
+            "ЛитРес" to pkgFor("ЛитРес", "ru.litres.android"),
+            "Яндекс Книги" to pkgFor("Яндекс Книги", "ru.yandex.mobile.books"),
+            "Alreader" to pkgFor("Alreader", "com.neverland.alreader"),
+            "Бумажная книга" to com.readingtracker.data.Book.PKG_PAPER,
+            "Другое" to com.readingtracker.data.Book.PKG_OTHER
+        )
+    }
+
     const val NOTIFICATION_CHANNEL_ID = "reading_tracker_service"
+    const val REMINDER_CHANNEL_ID = "reading_reminders"
     const val NOTIFICATION_ID = 1001
 
     const val ABANDONED_DAYS_THRESHOLD = 21

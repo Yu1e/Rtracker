@@ -12,8 +12,8 @@
         android:icon="@drawable/ic_stats" />
 
     <item
-        android:id="@+id/diagFragment"
-        android:title="Проверка"
-        android:icon="@android:drawable/ic_menu_info_details" />
+        android:id="@+id/settingsFragment"
+        android:title="Настройки"
+        android:icon="@android:drawable/ic_menu_preferences" />
 
 </menu>

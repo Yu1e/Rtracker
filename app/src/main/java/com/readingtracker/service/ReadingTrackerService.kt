@@ -8,36 +8,48 @@ import android.os.*
 import androidx.core.app.NotificationCompat
 import com.readingtracker.Constants
 import com.readingtracker.MainActivity
+import com.readingtracker.Prefs
 import com.readingtracker.R
 import com.readingtracker.data.AppDatabase
 import com.readingtracker.data.Book
+import com.readingtracker.data.BookActions
 import com.readingtracker.data.ReadingSession
 import com.readingtracker.diag.Diag
 import com.readingtracker.overlay.OverlayManager
+import com.readingtracker.widget.WidgetUpdater
 import kotlinx.coroutines.*
 
 class ReadingTrackerService : Service() {
+
+    companion object {
+        /** Пауза таймера, если нет перелистываний столько времени. */
+        const val IDLE_MS = 3 * 60_000L
+    }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private lateinit var db: AppDatabase
     private lateinit var overlay: OverlayManager
     private val handler = Handler(Looper.getMainLooper())
 
-    // package -> название для найденных на телефоне читалок
     private var trackedApps: Map<String, String> = emptyMap()
 
-    // Приложение, которое сейчас на переднем плане (по событиям UsageStats)
     private var currentForegroundPkg: String? = null
     private var lastEventTime = 0L
+    private var lastReportedPkg: String? = null
 
     // Читалка на переднем плане (null = нет)
     private var foregroundReadingApp: String? = null
 
     private var activeBookId: Long? = null
-    private var activeSessionId: Long? = null
+    @Volatile private var activeSessionId: Long? = null
 
     private var isScreenOn = true
-    private var lastReportedPkg: String? = null
+
+    // Пауза по бездействию
+    private var signalsAtEntry = 0
+    private var sessionResumedAt = 0L
+    private var idle = false
+    private var idleSince = 0L
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -48,9 +60,12 @@ class ReadingTrackerService : Service() {
                 }
                 Intent.ACTION_SCREEN_ON -> {
                     isScreenOn = true
+                    idle = false
                     val pkg = foregroundReadingApp
                     val bookId = activeBookId
-                    if (pkg != null && bookId != null) startSessionInternal(bookId, pkg)
+                    if (pkg != null && bookId != null && activeSessionId == null) {
+                        startSessionInternal(bookId, pkg)
+                    }
                 }
             }
         }
@@ -60,6 +75,7 @@ class ReadingTrackerService : Service() {
         override fun run() {
             try {
                 pollForegroundApp()
+                checkIdle()
                 Diag.set(this@ReadingTrackerService, Diag.HEARTBEAT, Diag.time())
             } catch (e: Exception) {
                 Diag.set(this@ReadingTrackerService, Diag.ERROR, "${Diag.time()} опрос: $e")
@@ -74,7 +90,8 @@ class ReadingTrackerService : Service() {
         overlay = OverlayManager(this)
         trackedApps = Constants.detectTrackedApps(this)
         Diag.set(this, Diag.TRACKED,
-            if (trackedApps.isEmpty()) "ни одной" else trackedApps.entries.joinToString("\n") { "${it.value} (${it.key})" })
+            if (trackedApps.isEmpty()) "ни одной"
+            else trackedApps.entries.joinToString("\n") { "${it.value} (${it.key})" })
         lastEventTime = System.currentTimeMillis() - 60_000
 
         registerReceiver(screenReceiver, IntentFilter().apply {
@@ -110,7 +127,7 @@ class ReadingTrackerService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // ── Определение приложения на переднем плане по событиям ──────────────────
+    // ── Какое приложение на экране ────────────────────────────────────────────
 
     private fun pollForegroundApp() {
         val usm = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
@@ -119,10 +136,8 @@ class ReadingTrackerService : Service() {
         val e = UsageEvents.Event()
         while (events.hasNextEvent()) {
             events.getNextEvent(e)
-            when (e.eventType) {
-                UsageEvents.Event.ACTIVITY_RESUMED -> currentForegroundPkg = e.packageName
-                UsageEvents.Event.ACTIVITY_PAUSED ->
-                    if (currentForegroundPkg == e.packageName) { /* ждём следующий RESUMED */ }
+            if (e.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                currentForegroundPkg = e.packageName
             }
             lastEventTime = maxOf(lastEventTime, e.timeStamp + 1)
         }
@@ -132,7 +147,7 @@ class ReadingTrackerService : Service() {
             lastReportedPkg = pkg
             Diag.set(this, Diag.FOREGROUND, "${Diag.time()} $pkg")
         }
-        // Наш собственный оверлей/приложение не прерывают чтение
+        // Наш собственный пузырёк/приложение не прерывают чтение
         if (pkg == packageName) return
 
         val newReadingApp = if (pkg != null && pkg in trackedApps) pkg else null
@@ -144,9 +159,36 @@ class ReadingTrackerService : Service() {
             }
             newReadingApp == null && foregroundReadingApp != null -> {
                 foregroundReadingApp = null
-                handler.post { overlay.hide() }
+                overlay.hide()
                 pauseSession()
             }
+        }
+    }
+
+    // ── Пауза, если 3 минуты нет перелистываний ───────────────────────────────
+
+    private fun checkIdle() {
+        val pkg = foregroundReadingApp ?: return
+        val bookId = activeBookId ?: return
+        if (!ActivitySignal.accessibilityConnected || !isScreenOn) return
+
+        // Доверяем сигналу, только если читалка вообще присылает события
+        val signals = ActivitySignal.count(pkg) - signalsAtEntry
+        if (signals < 2) return
+
+        val now = System.currentTimeMillis()
+        val lastActivity = maxOf(ActivitySignal.last(pkg) ?: 0L, sessionResumedAt)
+
+        if (activeSessionId != null && !idle && now - lastActivity > IDLE_MS) {
+            idle = true
+            idleSince = now
+            // Последнюю страницу засчитываем: конец сессии через минуту после последнего действия
+            pauseSession(endAt = minOf(now, lastActivity + 60_000))
+            Diag.set(this, Diag.EVENT, "${Diag.time()} пауза: 3 мин без перелистываний")
+        } else if (idle && (ActivitySignal.last(pkg) ?: 0L) > idleSince) {
+            idle = false
+            startSessionInternal(bookId, pkg)
+            Diag.set(this, Diag.EVENT, "${Diag.time()} чтение продолжено")
         }
     }
 
@@ -155,43 +197,53 @@ class ReadingTrackerService : Service() {
     private fun onReadingAppEntered(pkg: String) {
         if (!isScreenOn) return
         pauseSession()
+        idle = false
+        signalsAtEntry = ActivitySignal.count(pkg)
+        val appName = trackedApps[pkg] ?: pkg
+        Diag.set(this, Diag.EVENT, "${Diag.time()} вход в $appName")
+
+        // Книга, только что открытая через трекер-посредник: пузырёк не нужен
+        val pending = Prefs.takePendingBook(this, pkg)
+        if (pending != null) {
+            activeBookId = pending
+            startSessionInternal(pending, pkg)
+            return
+        }
 
         scope.launch {
-            // Последняя книга в этом приложении берётся из базы, поэтому переживает перезапуск
             val rememberedBookId = db.sessionDao().getLastBookIdForApp(pkg)
-            val appName = trackedApps[pkg] ?: pkg
-
-            Diag.set(this@ReadingTrackerService, Diag.EVENT, "${Diag.time()} вход в $appName")
             withContext(Dispatchers.Main) {
-              try {
-                overlay.show(
-                    appName = appName,
-                    rememberedBookId = rememberedBookId,
-                    db = db,
-                    onContinue = { bookId ->
-                        overlay.hide()
-                        activeBookId = bookId
-                        startSessionInternal(bookId, pkg)
-                    },
-                    onNewBook = { title, author ->
-                        overlay.hide()
-                        scope.launch {
-                            val bookId = saveNewBook(title, author, pkg, appName)
+                try {
+                    overlay.show(
+                        appName = appName,
+                        rememberedBookId = rememberedBookId,
+                        db = db,
+                        onContinue = { bookId ->
+                            overlay.hide()
                             activeBookId = bookId
                             startSessionInternal(bookId, pkg)
-                        }
-                    },
-                    onDismiss = { overlay.hide() }
-                )
-              } catch (e: Exception) {
-                Diag.set(this@ReadingTrackerService, Diag.ERROR, "${Diag.time()} пузырёк: $e")
-              }
+                        },
+                        onNewBook = { title, author ->
+                            overlay.hide()
+                            scope.launch {
+                                val bookId = saveNewBook(title, author, pkg, appName)
+                                activeBookId = bookId
+                                startSessionInternal(bookId, pkg)
+                            }
+                        },
+                        onDismiss = { overlay.hide() }
+                    )
+                } catch (e: Exception) {
+                    Diag.set(this@ReadingTrackerService, Diag.ERROR, "${Diag.time()} пузырёк: $e")
+                }
             }
         }
     }
 
     private fun startSessionInternal(bookId: Long, pkg: String) {
+        sessionResumedAt = System.currentTimeMillis()
         scope.launch {
+            if (activeSessionId != null) return@launch
             val session = ReadingSession(
                 bookId = bookId,
                 startTime = System.currentTimeMillis(),
@@ -201,16 +253,17 @@ class ReadingTrackerService : Service() {
         }
     }
 
-    private fun pauseSession() {
+    private fun pauseSession(endAt: Long = System.currentTimeMillis()) {
         val sessionId = activeSessionId ?: return
         activeSessionId = null
         val bookId = activeBookId ?: return
 
         scope.launch {
             val session = db.sessionDao().getSessionById(sessionId) ?: return@launch
-            val endTime = System.currentTimeMillis()
+            val endTime = maxOf(session.startTime, endAt)
             db.sessionDao().updateSession(session.copy(endTime = endTime))
             accumulateTime(bookId, session.startTime, endTime)
+            WidgetUpdater.update(this@ReadingTrackerService)
         }
     }
 
@@ -221,12 +274,8 @@ class ReadingTrackerService : Service() {
         db.bookDao().updateBook(book.copy(totalMinutes = book.totalMinutes + minutes))
     }
 
-    private suspend fun saveNewBook(title: String, author: String, pkg: String, appName: String): Long {
-        db.bookDao().findBook(title, author)?.let { return it.id }
-        return db.bookDao().insertBook(
-            Book(title = title, author = author, appPackage = pkg, appName = appName)
-        )
-    }
+    private suspend fun saveNewBook(title: String, author: String, pkg: String, appName: String): Long =
+        BookActions.addNewBook(this, title, author, pkg, appName)
 
     private fun buildNotification(): Notification {
         val pi = PendingIntent.getActivity(

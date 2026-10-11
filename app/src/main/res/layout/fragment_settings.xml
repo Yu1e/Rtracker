@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Настройки"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Резервная копия -->
+        <TextView style="@style/SettingsSection" android:text="Резервная копия" />
+        <TextView
+            android:id="@+id/tvBackupStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:layout_marginBottom="6dp" />
+        <Button
+            android:id="@+id/btnBackupFolder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Выбрать папку для копий"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+        <Button
+            android:id="@+id/btnBackupNow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Сохранить копию сейчас"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+        <Button
+            android:id="@+id/btnRestore"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Восстановить из копии"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+        <!-- Перелистывания -->
+        <TextView style="@style/SettingsSection" android:text="Пауза и разведка" />
+        <TextView
+            android:id="@+id/tvA11yStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:layout_marginBottom="6dp" />
+        <Button
+            android:id="@+id/btnA11y"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Открыть специальные возможности"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+        <Button
+            android:id="@+id/btnAppInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Открыть «О приложении»"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+        <TextView
+            android:id="@+id/tvScout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginTop="8dp" />
+        <Button
+            android:id="@+id/btnShareScout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Отправить журнал разведки"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+        <Button
+            android:id="@+id/btnClearScout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Очистить журнал"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
+
+        <!-- Иконка -->
+        <TextView style="@style/SettingsSection" android:text="Иконка приложения" />
+        <LinearLayout
+            android:id="@+id/iconRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+
+        <!-- Проверка -->
+        <TextView style="@style/SettingsSection" android:text="Проверка" />
+        <TextView
+            android:id="@+id/tvReport"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textIsSelectable="true"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="8dp" />
+        <Button
+            android:id="@+id/btnTestBubble"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Показать пузырёк для проверки"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+        <Button
+            android:id="@+id/btnCopy"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Скопировать отчёт"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+        <Button
+            android:id="@+id/btnClearError"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Стереть ошибку"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
+    </LinearLayout>
+</ScrollView>

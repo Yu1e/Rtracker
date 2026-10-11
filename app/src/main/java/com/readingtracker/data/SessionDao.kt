@@ -8,6 +8,9 @@ interface SessionDao {
     @Insert
     suspend fun insertSession(session: ReadingSession): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(sessions: List<ReadingSession>)
+
     @Update
     suspend fun updateSession(session: ReadingSession)
 
@@ -25,35 +28,23 @@ interface SessionDao {
     """)
     suspend fun getLastBookIdForApp(pkg: String): Long?
 
-    @Query("SELECT * FROM reading_sessions WHERE bookId = :bookId ORDER BY startTime DESC")
+    /** Книга последней сессии в любом приложении. */
+    @Query("""
+        SELECT bookId FROM reading_sessions
+        WHERE bookId IN (SELECT id FROM books)
+        ORDER BY startTime DESC LIMIT 1
+    """)
+    suspend fun getLastBookIdAnyApp(): Long?
+
+    @Query("SELECT * FROM reading_sessions WHERE bookId = :bookId ORDER BY startTime ASC")
     suspend fun getSessionsForBook(bookId: Long): List<ReadingSession>
 
-    /**
-     * Returns one row per calendar day: the date string (YYYY-MM-DD) and total minutes read.
-     * Used for streak calculation and calendar heatmap.
-     */
-    @Query("""
-        SELECT 
-            DATE(startTime / 1000, 'unixepoch', 'localtime') AS day,
-            SUM((COALESCE(endTime, :now) - startTime) / 60000) AS minutes
-        FROM reading_sessions
-        WHERE startTime >= :since
-        GROUP BY day
-        ORDER BY day DESC
-    """)
-    suspend fun getDailyMinutes(since: Long, now: Long): List<DayMinutes>
+    @Query("SELECT * FROM reading_sessions ORDER BY startTime ASC")
+    suspend fun getAllSessions(): List<ReadingSession>
 
-    /** Total minutes in a given calendar month, for stats screen. */
-    @Query("""
-        SELECT SUM((COALESCE(endTime, :now) - startTime) / 60000)
-        FROM reading_sessions
-        WHERE startTime >= :startOfMonth AND startTime < :endOfMonth
-    """)
-    suspend fun getMinutesInMonth(
-        startOfMonth: Long,
-        endOfMonth: Long,
-        now: Long
-    ): Long?
+    @Query("DELETE FROM reading_sessions WHERE bookId = :bookId")
+    suspend fun deleteForBook(bookId: Long)
+
+    @Query("DELETE FROM reading_sessions")
+    suspend fun deleteAll()
 }
-
-data class DayMinutes(val day: String, val minutes: Long)

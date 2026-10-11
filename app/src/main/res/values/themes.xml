@@ -11,7 +11,20 @@
         <item name="windowNoTitle">true</item>
     </style>
 
-    <style name="Theme.ReadingTracker.Dialog" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
+    <style name="Theme.ReadingTracker.Dialog" parent="Theme.MaterialComponents.DayNight.Dialog">
         <item name="colorPrimary">#5C6BC0</item>
+        <item name="colorSecondary">#26A69A</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowMinWidthMajor">90%</item>
+        <item name="android:windowMinWidthMinor">90%</item>
+    </style>
+
+    <style name="SettingsSection">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:paddingTop">24dp</item>
+        <item name="android:paddingBottom">6dp</item>
     </style>
 </resources>

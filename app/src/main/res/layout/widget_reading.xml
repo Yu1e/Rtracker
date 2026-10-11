@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="14dp"
+    android:background="@drawable/widget_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/wStreak"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textSize="34sp"
+                android:textStyle="bold"
+                android:textColor="#F2F2F0" />
+            <TextView
+                android:id="@+id/wStreakLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="дней подряд"
+                android:textSize="12sp"
+                android:textColor="#B5B5B0" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/wToday"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 мин"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:textColor="#F2F2F0" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="сегодня"
+                android:textSize="12sp"
+                android:textColor="#B5B5B0" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/wRecord"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textSize="12sp"
+        android:textColor="#86b6ef" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal">
+            <TextView
+                android:id="@+id/wDay0"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:gravity="center"
+                android:textSize="11sp"
+                android:textColor="#B5B5B0"
+                android:background="@drawable/widget_cell_0" />
+            <TextView
+                android:id="@+id/wDay1"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:gravity="center"
+                android:textSize="11sp"
+                android:textColor="#B5B5B0"
+                android:background="@drawable/widget_cell_0" />
+            <TextView
+                android:id="@+id/wDay2"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:gravity="center"
+                android:textSize="11sp"
+                android:textColor="#B5B5B0"
+                android:background="@drawable/widget_cell_0" />
+            <TextView
+                android:id="@+id/wDay3"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:gravity="center"
+                android:textSize="11sp"
+                android:textColor="#B5B5B0"
+                android:background="@drawable/widget_cell_0" />
+            <TextView
+                android:id="@+id/wDay4"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:gravity="center"
+                android:textSize="11sp"
+                android:textColor="#B5B5B0"
+                android:background="@drawable/widget_cell_0" />
+            <TextView
+                android:id="@+id/wDay5"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:gravity="center"
+                android:textSize="11sp"
+                android:textColor="#B5B5B0"
+                android:background="@drawable/widget_cell_0" />
+            <TextView
+                android:id="@+id/wDay6"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="0dp"
+                android:gravity="center"
+                android:textSize="11sp"
+                android:textColor="#B5B5B0"
+                android:background="@drawable/widget_cell_0" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/wBook"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="#F2F2F0" />
+
+    <TextView
+        android:id="@+id/wBookMeta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="#B5B5B0" />
+
+    <TextView
+        android:id="@+id/wMonth"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textSize="13sp"
+        android:textColor="#F2F2F0" />
+
+    <TextView
+        android:id="@+id/wYear"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="13sp"
+        android:textColor="#B5B5B0" />
+</LinearLayout>

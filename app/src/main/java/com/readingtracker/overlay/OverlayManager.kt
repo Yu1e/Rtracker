@@ -2,29 +2,25 @@ package com.readingtracker.overlay
 
 import android.content.Context
 import android.graphics.PixelFormat
-import android.os.Build
 import android.view.*
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import androidx.appcompat.view.ContextThemeWrapper
-import com.readingtracker.diag.Diag
 import com.readingtracker.R
 import com.readingtracker.data.AppDatabase
 import com.readingtracker.data.Book
+import com.readingtracker.diag.Diag
 import kotlinx.coroutines.*
 
+/** Пузырёк поверх читалки: «Продолжаем?» или форма новой книги. */
 class OverlayManager(private val context: Context) {
 
     private val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var currentView: View? = null
 
-    private val overlayType =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        else
-            @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+    // Компоненты Material требуют тему оформления, у службы её нет
+    private val themed = ContextThemeWrapper(context, R.style.Theme_ReadingTracker)
 
-    /** Show the bubble. Decides content based on whether we remember the last book. */
     fun show(
         appName: String,
         rememberedBookId: Long?,
@@ -34,21 +30,13 @@ class OverlayManager(private val context: Context) {
         onDismiss: () -> Unit
     ) {
         hide()
-
-        // Компоненты Material требуют тему оформления, у службы её нет
-        val inflater = LayoutInflater.from(ContextThemeWrapper(context, R.style.Theme_ReadingTracker))
-
+        val inflater = LayoutInflater.from(themed)
         if (rememberedBookId != null) {
-            showContinueOrNew(
-                inflater, appName, rememberedBookId, db,
-                onContinue, onNewBook, onDismiss
-            )
+            showContinueOrNew(inflater, appName, rememberedBookId, db, onContinue, onNewBook, onDismiss)
         } else {
             showNewBookForm(inflater, appName, onNewBook, onDismiss)
         }
     }
-
-    // ── "Continue reading X or start new?" ────────────────────────────────────
 
     private fun showContinueOrNew(
         inflater: LayoutInflater,
@@ -63,28 +51,19 @@ class OverlayManager(private val context: Context) {
             val book = db.bookDao().getBookById(bookId)
             withContext(Dispatchers.Main) {
                 val view = inflater.inflate(R.layout.overlay_continue, null)
-
                 view.findViewById<TextView>(R.id.tvAppName).text = appName
                 view.findViewById<TextView>(R.id.tvBookName).text =
-                    book?.let { "«${it.title}»" } ?: "предыдущую книгу"
-
-                view.findViewById<Button>(R.id.btnContinue).setOnClickListener {
-                    onContinue(bookId)
-                }
+                    book?.let { Book.displayName(it) } ?: "предыдущую книгу"
+                view.findViewById<Button>(R.id.btnContinue).setOnClickListener { onContinue(bookId) }
                 view.findViewById<Button>(R.id.btnNewBook).setOnClickListener {
                     hide()
                     showNewBookForm(inflater, appName, onNewBook, onDismiss)
                 }
-                view.findViewById<ImageButton>(R.id.btnClose).setOnClickListener {
-                    onDismiss()
-                }
-
+                view.findViewById<ImageButton>(R.id.btnClose).setOnClickListener { onDismiss() }
                 addToWindow(view, focusable = false)
             }
         }
     }
-
-    // ── "Enter new book" form ──────────────────────────────────────────────────
 
     private fun showNewBookForm(
         inflater: LayoutInflater,
@@ -93,7 +72,6 @@ class OverlayManager(private val context: Context) {
         onDismiss: () -> Unit
     ) {
         val view = inflater.inflate(R.layout.overlay_new_book, null)
-
         view.findViewById<TextView>(R.id.tvAppName).text = appName
         val etTitle = view.findViewById<EditText>(R.id.etTitle)
         val etAuthor = view.findViewById<EditText>(R.id.etAuthor)
@@ -101,29 +79,24 @@ class OverlayManager(private val context: Context) {
         view.findViewById<Button>(R.id.btnSave).setOnClickListener {
             val title = etTitle.text.toString().trim()
             val author = etAuthor.text.toString().trim()
-            if (title.isEmpty()) {
-                etTitle.error = "Введите название"
+            // Достаточно любого одного поля
+            if (title.isEmpty() && author.isEmpty()) {
+                etTitle.error = "Заполните название или автора"
                 return@setOnClickListener
             }
             hideKeyboard(etTitle)
             onNewBook(title, author)
         }
-
         view.findViewById<ImageButton>(R.id.btnClose).setOnClickListener {
             hideKeyboard(etTitle)
             onDismiss()
         }
 
-        // Focusable so keyboard works
         addToWindow(view, focusable = true)
-
-        // Request focus & show keyboard
         etTitle.requestFocus()
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(etTitle, InputMethodManager.SHOW_IMPLICIT)
     }
-
-    // ── Window helpers ─────────────────────────────────────────────────────────
 
     private fun addToWindow(view: View, focusable: Boolean) {
         val flags = if (focusable) {
@@ -131,11 +104,10 @@ class OverlayManager(private val context: Context) {
         } else {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
         }
-
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            overlayType,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             flags,
             PixelFormat.TRANSLUCENT
         ).apply {
@@ -146,13 +118,12 @@ class OverlayManager(private val context: Context) {
                         WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
             }
         }
-
         try {
             wm.addView(view, params)
             currentView = view
             Diag.set(context, Diag.EVENT, "${Diag.time()} пузырёк показан")
         } catch (e: Exception) {
-            Diag.set(context, Diag.ERROR, "${Diag.time()} addView: ${e}")
+            Diag.set(context, Diag.ERROR, "${Diag.time()} addView: $e")
         }
     }
 

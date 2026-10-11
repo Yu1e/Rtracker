@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="chart_bar">#3987e5</color>
+    <color name="chart_grid">#3a3a37</color>
+    <color name="heat_0">#2c2c2a</color>
+    <color name="heat_1">#184f95</color>
+    <color name="heat_2">#256abf</color>
+    <color name="heat_3">#3987e5</color>
+    <color name="heat_4">#86b6ef</color>
+</resources>

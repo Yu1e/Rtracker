@@ -5,12 +5,14 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
 import android.util.Log
+import com.readingtracker.backup.DailyWorker
 import com.readingtracker.diag.Diag
 
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        DailyWorker.schedule(this)
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             try {
@@ -32,8 +34,16 @@ class App : Application() {
                 description = "Фоновое отслеживание чтения"
                 setShowBadge(false)
             }
+            val reminders = NotificationChannel(
+                Constants.REMINDER_CHANNEL_ID,
+                "Напоминания о книгах",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Вопрос «Дочитана?» о книгах без статуса"
+            }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
+            manager.createNotificationChannel(reminders)
         }
     }
 }

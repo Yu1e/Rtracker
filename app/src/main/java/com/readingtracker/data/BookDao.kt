@@ -9,20 +9,26 @@ interface BookDao {
     @Query("SELECT * FROM books ORDER BY startDate DESC")
     fun getAllBooks(): LiveData<List<Book>>
 
-    @Query("SELECT * FROM books WHERE status = 'reading' ORDER BY startDate DESC")
-    fun getReadingBooks(): LiveData<List<Book>>
+    @Query("SELECT * FROM books ORDER BY startDate DESC")
+    suspend fun getAllBooksSync(): List<Book>
 
     @Query("SELECT * FROM books WHERE id = :id")
     suspend fun getBookById(id: Long): Book?
 
+    @Query("SELECT * FROM books WHERE id = :id")
+    fun observeBook(id: Long): LiveData<Book?>
+
     @Query("SELECT * FROM books WHERE title = :title AND author = :author LIMIT 1")
     suspend fun findBook(title: String, author: String): Book?
 
-    @Query("SELECT * FROM books WHERE status = 'reading' ORDER BY startDate DESC LIMIT 1")
-    suspend fun getLastReadingBook(): Book?
+    @Query("SELECT DISTINCT author FROM books WHERE author != '' ORDER BY author")
+    suspend fun getAllAuthors(): List<String>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBook(book: Book): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(books: List<Book>)
 
     @Update
     suspend fun updateBook(book: Book)
@@ -30,44 +36,29 @@ interface BookDao {
     @Delete
     suspend fun deleteBook(book: Book)
 
-    // ── Statistics ─────────────────────────────────────────────────────────────
+    @Query("DELETE FROM books")
+    suspend fun deleteAll()
 
-    @Query("SELECT COUNT(*) FROM books WHERE status = 'finished'")
-    fun getFinishedBooksCount(): LiveData<Int>
-
+    /**
+     * Книги, о статусе которых пора спросить в трекере:
+     * без статуса и (начата новая после неё, или прошло 3 недели), и срок «позже» истёк.
+     */
     @Query("""
-        SELECT COUNT(*) FROM books 
-        WHERE status = 'finished' 
-          AND endDate >= :startOfMonth AND endDate < :endOfMonth
+        SELECT * FROM books
+        WHERE status = 'reading'
+          AND (needsStatusCheck = 1 OR startDate <= :threeWeeksAgo)
+          AND (statusAskAt IS NULL OR statusAskAt <= :now)
+        ORDER BY startDate ASC
     """)
-    suspend fun getFinishedBooksInMonth(startOfMonth: Long, endOfMonth: Long): Int
+    suspend fun getBooksToAsk(threeWeeksAgo: Long, now: Long): List<Book>
 
-    @Query("SELECT SUM(totalMinutes) FROM books WHERE status = 'finished'")
-    fun getTotalReadingMinutes(): LiveData<Long?>
-
-    @Query("SELECT * FROM books WHERE status = 'reading' AND startDate < :thresholdDate")
-    suspend fun getPotentiallyAbandonedBooks(thresholdDate: Long): List<Book>
-
+    /** Для уведомлений: только правило трёх недель. */
     @Query("""
-        SELECT author, COUNT(*) as bookCount 
-        FROM books 
-        GROUP BY author 
-        ORDER BY bookCount DESC 
-        LIMIT 10
+        SELECT * FROM books
+        WHERE status = 'reading'
+          AND startDate <= :threeWeeksAgo
+          AND (statusAskAt IS NULL OR statusAskAt <= :now)
+          AND (lastNotifiedAt IS NULL OR lastNotifiedAt <= :weekAgo)
     """)
-    fun getTopAuthors(): LiveData<List<AuthorStat>>
-
-    @Query("""
-        SELECT appName, COUNT(*) as bookCount, SUM(totalMinutes) as totalMins
-        FROM books
-        GROUP BY appPackage
-        ORDER BY totalMins DESC
-    """)
-    fun getStatsByApp(): LiveData<List<AppStat>>
-
-    @Query("SELECT * FROM books WHERE status = 'finished' ORDER BY totalMinutes DESC")
-    suspend fun getFinishedBooksSortedByTime(): List<Book>
+    suspend fun getBooksToNotify(threeWeeksAgo: Long, now: Long, weekAgo: Long): List<Book>
 }
-
-data class AuthorStat(val author: String, val bookCount: Int)
-data class AppStat(val appName: String, val bookCount: Int, val totalMins: Long)

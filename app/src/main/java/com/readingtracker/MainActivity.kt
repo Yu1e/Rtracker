@@ -12,11 +12,17 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.readingtracker.databinding.ActivityMainBinding
+import androidx.lifecycle.lifecycleScope
+import com.readingtracker.backup.BackupManager
+import com.readingtracker.reminder.StatusPrompt
 import com.readingtracker.service.ReadingTrackerService
+import com.readingtracker.widget.WidgetUpdater
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private val statusPrompt = StatusPrompt(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,8 +37,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // User may have just returned from Settings — re-check
+        // Могли вернуться из настроек — проверяем разрешения снова
         checkPermissionsAndStart()
+        // Вопрос «дочитана?» о книгах без статуса
+        statusPrompt.maybeShow()
+        lifecycleScope.launch { try { BackupManager.autoBackupIfNeeded(this@MainActivity) } catch (_: Exception) {} }
+        WidgetUpdater.update(this)
     }
 
     private fun checkPermissionsAndStart() {
