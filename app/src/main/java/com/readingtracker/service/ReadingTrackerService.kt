@@ -24,6 +24,17 @@ class ReadingTrackerService : Service() {
     companion object {
         /** Пауза таймера, если нет перелистываний столько времени. */
         const val IDLE_MS = 3 * 60_000L
+
+        /** Если читалка не на экране (экран включён) столько времени — служба выгружается. */
+        const val LEAVE_STOP_MS = 60_000L
+
+        const val EXTRA_READER_PKG = "reader_pkg"
+
+        /** Запуск службы на время чтения. Вызывается из ярлыка/кнопки читалки. */
+        fun startForReader(context: Context, pkg: String) {
+            val i = Intent(context, ReadingTrackerService::class.java).putExtra(EXTRA_READER_PKG, pkg)
+            context.startForegroundService(i)
+        }
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -44,6 +55,10 @@ class ReadingTrackerService : Service() {
     @Volatile private var activeSessionId: Long? = null
 
     private var isScreenOn = true
+
+    // Когда читалку покинули (экран включён); 0 — сейчас в читалке
+    private var outsideSince = 0L
+    private var startedFor: String? = null
 
     // Пауза по бездействию
     private var signalsAtEntry = 0
@@ -110,10 +125,19 @@ class ReadingTrackerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val pkg = intent?.getStringExtra(EXTRA_READER_PKG)
+        if (pkg != null) {
+            startedFor = pkg
+            // Свежий запуск читалки: даём ей время появиться на экране
+            outsideSince = 0L
+            lastEventTime = System.currentTimeMillis() - 5_000
+            if (pkg !in trackedApps) trackedApps = trackedApps + (pkg to (Constants.detectTrackedApps(this)[pkg] ?: pkg))
+        }
         startForeground(Constants.NOTIFICATION_ID, buildNotification())
         handler.removeCallbacks(pollRunnable)
         handler.post(pollRunnable)
-        return START_STICKY
+        // Без ярлыка не перезапускаемся: служба живёт только вместе с чтением
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
@@ -151,6 +175,19 @@ class ReadingTrackerService : Service() {
         if (pkg == packageName) return
 
         val newReadingApp = if (pkg != null && pkg in trackedApps) pkg else null
+
+        // Читалка давно не на экране — выгружаемся
+        if (newReadingApp == null && isScreenOn) {
+            val now = System.currentTimeMillis()
+            if (outsideSince == 0L) outsideSince = now
+            else if (now - outsideSince > LEAVE_STOP_MS) {
+                Diag.set(this, Diag.EVENT, "${Diag.time()} чтение закончено, трекер выгружен")
+                stopSelf()
+                return
+            }
+        } else if (newReadingApp != null) {
+            outsideSince = 0L
+        }
 
         when {
             newReadingApp != null && newReadingApp != foregroundReadingApp -> {
@@ -284,8 +321,8 @@ class ReadingTrackerService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, Constants.NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("Трекер чтения активен")
-            .setContentText("Нажмите, чтобы открыть")
+            .setContentTitle("Идёт чтение")
+            .setContentText("Трекер выгрузится сам, когда закроете читалку")
             .setSmallIcon(R.drawable.ic_book_notify)
             .setContentIntent(pi)
             .setSilent(true)

@@ -22,7 +22,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Трекер как посредник: «Открыть с помощью → Трекер чтения».
- * Читает автора и название из файла, записывает книгу, передаёт файл в Alreader.
+ * Читает автора и название из файла, записывает книгу, передаёт файл в AlReader.
  */
 class OpenBookActivity : AppCompatActivity() {
 
@@ -42,11 +42,11 @@ class OpenBookActivity : AppCompatActivity() {
         mime = intent.type ?: uri?.let { contentResolver.getType(it) }
         if (uri == null) { finish(); return }
 
-        val reader = Constants.detectTrackedApps(this).entries.firstOrNull { it.value == "Alreader" }
+        val reader = Constants.detectTrackedApps(this).entries.firstOrNull { it.value == "AlReader" }
         readerPkg = reader?.key
         readerName = reader?.value ?: "читалку"
         b.tvTarget.text = if (readerPkg != null) "Откроется в $readerName"
-        else "Alreader не найден — откроется выбор приложения"
+        else "AlReader не найден — откроется выбор приложения"
 
         b.btnSave.setOnClickListener { saveAndOpen() }
         b.btnOpenOnly.setOnClickListener { openInReader(); finish() }
@@ -99,7 +99,11 @@ class OpenBookActivity : AppCompatActivity() {
             val name = if (readerPkg != null) readerName else "Другое"
             val id = BookActions.addNewBook(this@OpenBookActivity, title, author, pkg, name)
             // Следующий вход в читалку не потребует пузырька
-            readerPkg?.let { Prefs.setPendingBook(this@OpenBookActivity, it, id) }
+            readerPkg?.let {
+                Prefs.setPendingBook(this@OpenBookActivity, it, id)
+                try { com.readingtracker.service.ReadingTrackerService.startForReader(this@OpenBookActivity, it) }
+                catch (e: Exception) { Diag.set(this@OpenBookActivity, Diag.ERROR, "${Diag.time()} запуск службы: $e") }
+            }
             openInReader()
             finish()
         }
@@ -118,7 +122,7 @@ class OpenBookActivity : AppCompatActivity() {
                 return
             } catch (_: ActivityNotFoundException) {
                 try {
-                    // Alreader может не объявлять этот тип файла — пробуем без типа
+                    // AlReader может не объявлять этот тип файла — пробуем без типа
                     startActivity(Intent(view).setDataAndType(u, null).setPackage(pkg))
                     return
                 } catch (_: ActivityNotFoundException) {}

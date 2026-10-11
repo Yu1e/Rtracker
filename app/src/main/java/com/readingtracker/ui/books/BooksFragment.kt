@@ -5,7 +5,10 @@ import android.view.*
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.chip.Chip
+import com.readingtracker.Constants
 import com.readingtracker.databinding.FragmentBooksBinding
+import com.readingtracker.launcher.ReaderLauncher
 import com.readingtracker.ui.book.BookActivity
 
 class BooksFragment : Fragment() {
@@ -33,6 +36,25 @@ class BooksFragment : Fragment() {
         }
 
         b.fabAdd.setOnClickListener { BookActivity.create(requireContext()) }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        buildReaderChips()
+    }
+
+    /** Кнопки читалок: открывают читалку через трекер. */
+    private fun buildReaderChips() {
+        val ctx = requireContext()
+        b.readerChips.removeAllViews()
+        val readers = Constants.detectTrackedApps(ctx).entries.distinctBy { it.value }
+        b.tvReadersLabel.visibility = if (readers.isEmpty()) View.GONE else View.VISIBLE
+        for ((pkg, name) in readers) {
+            b.readerChips.addView(Chip(ctx).apply {
+                text = name
+                setOnClickListener { ReaderLauncher.open(ctx, pkg) }
+            })
+        }
     }
 
     override fun onDestroyView() {

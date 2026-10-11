@@ -15,7 +15,7 @@ import com.readingtracker.databinding.ActivityMainBinding
 import androidx.lifecycle.lifecycleScope
 import com.readingtracker.backup.BackupManager
 import com.readingtracker.reminder.StatusPrompt
-import com.readingtracker.service.ReadingTrackerService
+import com.readingtracker.launcher.ReaderLauncher
 import com.readingtracker.widget.WidgetUpdater
 import kotlinx.coroutines.launch
 
@@ -32,20 +32,20 @@ class MainActivity : AppCompatActivity() {
         val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         binding.bottomNav.setupWithNavController(navHost.navController)
 
-        checkPermissionsAndStart()
+        checkPermissions()
     }
 
     override fun onResume() {
         super.onResume()
         // Могли вернуться из настроек — проверяем разрешения снова
-        checkPermissionsAndStart()
+        checkPermissions()
         // Вопрос «дочитана?» о книгах без статуса
         statusPrompt.maybeShow()
         lifecycleScope.launch { try { BackupManager.autoBackupIfNeeded(this@MainActivity) } catch (_: Exception) {} }
         WidgetUpdater.update(this)
     }
 
-    private fun checkPermissionsAndStart() {
+    private fun checkPermissions() {
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity() {
         when {
             !hasUsageStatsPermission() -> askUsageStats()
             !Settings.canDrawOverlays(this) -> askOverlay()
-            else -> startService()
+            else -> ReaderLauncher.updateDynamic(this)
         }
     }
 
@@ -101,14 +101,5 @@ class MainActivity : AppCompatActivity() {
             }
             .setCancelable(false)
             .show()
-    }
-
-    private fun startService() {
-        val intent = Intent(this, ReadingTrackerService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
     }
 }

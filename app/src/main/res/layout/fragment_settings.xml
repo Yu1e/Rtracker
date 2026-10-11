@@ -18,6 +18,20 @@
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
 
+        <!-- Ярлыки читалок -->
+        <TextView style="@style/SettingsSection" android:text="ярлыки на рабочий стол" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:layout_marginBottom="6dp"
+            android:text="Трекер включается только вместе с читалкой и выгружается сам через минуту после того, как её закрыли. Чтобы чтение записывалось, открывайте читалки через эти ярлыки (или через кнопки в трекере). Обычные значки читалок можно убрать с рабочего стола или отодвинуть подальше." />
+        <LinearLayout
+            android:id="@+id/shortcutButtons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
         <!-- Резервная копия -->
         <TextView style="@style/SettingsSection" android:text="Резервная копия" />
         <TextView

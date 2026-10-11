@@ -11,8 +11,9 @@ object Constants {
         "ru.litres.android" to "ЛитРес",
         "ru.yandex.mobile.books" to "Яндекс Книги",
         "ru.yandex.books" to "Яндекс Книги",
-        "com.neverland.alreader" to "Alreader",
-        "com.neverland.alreaderpro" to "Alreader"
+        "com.neverland.alreader" to "AlReader",
+        "com.neverland.alreaderpro" to "AlReader",
+        "ru.rsl.svetApp" to "Свет"
     )
 
     // Ключевые слова в названии приложения (в нижнем регистре)
@@ -21,10 +22,16 @@ object Constants {
         "litres" to "ЛитРес",
         "яндекс книги" to "Яндекс Книги",
         "яндекс.книги" to "Яндекс Книги",
-        "alreader" to "Alreader"
+        "alreader" to "AlReader"
     )
 
-    /** Ищет среди установленных приложений три читалки. Возвращает package -> название. */
+    // Точное совпадение названия (слишком общие слова, чтобы искать вхождение)
+    private val LABEL_EXACT = mapOf(
+        "свет" to "Свет",
+        "свет нэб" to "Свет"
+    )
+
+    /** Ищет среди установленных приложений читалки. Возвращает package -> название. */
     fun detectTrackedApps(context: Context): Map<String, String> {
         val result = LinkedHashMap<String, String>()
         val pm = context.packageManager
@@ -43,8 +50,9 @@ object Constants {
                 continue
             }
             val label = info.loadLabel(pm).toString().lowercase()
-            val match = LABEL_KEYWORDS.entries.firstOrNull { label.contains(it.key) }
-            if (match != null) result[pkg] = match.value
+            val match = LABEL_KEYWORDS.entries.firstOrNull { label.contains(it.key) }?.value
+                ?: LABEL_EXACT[label.trim()]
+            if (match != null) result[pkg] = match
         }
         return result
     }
@@ -57,7 +65,8 @@ object Constants {
         return listOf(
             "ЛитРес" to pkgFor("ЛитРес", "ru.litres.android"),
             "Яндекс Книги" to pkgFor("Яндекс Книги", "ru.yandex.mobile.books"),
-            "Alreader" to pkgFor("Alreader", "com.neverland.alreader"),
+            "AlReader" to pkgFor("AlReader", "com.neverland.alreader"),
+            "Свет" to pkgFor("Свет", "ru.rsl.svetApp"),
             "Бумажная книга" to com.readingtracker.data.Book.PKG_PAPER,
             "Другое" to com.readingtracker.data.Book.PKG_OTHER
         )

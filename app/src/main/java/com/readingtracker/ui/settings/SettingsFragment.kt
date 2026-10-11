@@ -105,6 +105,7 @@ class SettingsFragment : Fragment() {
         }
 
         buildIconRow()
+        buildShortcutButtons()
 
         b.btnTestBubble.setOnClickListener { testBubble() }
         b.btnCopy.setOnClickListener {
@@ -182,6 +183,30 @@ class SettingsFragment : Fragment() {
         appendLine()
         appendLine("Последняя ошибка:")
         appendLine("  ${Diag.get(c, Diag.ERROR) ?: "нет"}")
+    }
+
+    // ── Ярлыки читалок ────────────────────────────────────────────────────────
+
+    private fun buildShortcutButtons() {
+        val ctx = requireContext()
+        b.shortcutButtons.removeAllViews()
+        val readers = Constants.detectTrackedApps(ctx).entries.distinctBy { it.value }
+        if (readers.isEmpty()) {
+            b.shortcutButtons.addView(TextView(ctx).apply { text = "Читалки не найдены"; textSize = 14f })
+            return
+        }
+        for ((pkg, name) in readers) {
+            b.shortcutButtons.addView(com.google.android.material.button.MaterialButton(
+                ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                text = "добавить ярлык: $name"
+                isAllCaps = false
+                setOnClickListener {
+                    if (!com.readingtracker.launcher.ReaderLauncher.requestPin(ctx, pkg, name)) {
+                        toast("Рабочий стол не поддерживает добавление ярлыков. Долгое нажатие на значок трекера покажет читалки в меню.")
+                    }
+                }
+            })
+        }
     }
 
     // ── Иконки ────────────────────────────────────────────────────────────────

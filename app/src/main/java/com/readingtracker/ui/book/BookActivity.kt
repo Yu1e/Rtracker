@@ -109,7 +109,9 @@ class BookActivity : AppCompatActivity() {
             if (launch != null) {
                 b.btnOpenReader.visibility = View.VISIBLE
                 b.btnOpenReader.text = "Открыть в ${bk.appName}"
-                b.btnOpenReader.setOnClickListener { startActivity(launch) }
+                b.btnOpenReader.setOnClickListener {
+                    com.readingtracker.launcher.ReaderLauncher.open(this@BookActivity, bk.appPackage)
+                }
             }
             b.btnDelete.visibility = View.VISIBLE
             b.btnDelete.setOnClickListener { confirmDelete(bk) }

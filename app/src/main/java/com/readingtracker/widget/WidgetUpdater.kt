@@ -98,9 +98,10 @@ object WidgetUpdater {
             v.setTextViewText(R.id.wBook, Book.displayName(book))
             v.setTextViewText(R.id.wBookMeta,
                 "${book.appName} · ${formatMinutes(book.totalMinutes)} · ${com.readingtracker.data.BookActions.daysOnBook(book)}-й день")
-            val launch = c.packageManager.getLaunchIntentForPackage(book.appPackage)
-                ?: Intent(c, BookActivity::class.java).putExtra(BookActivity.EXTRA_BOOK_ID, book.id)
-            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val launch = if (c.packageManager.getLaunchIntentForPackage(book.appPackage) != null)
+                com.readingtracker.launcher.ReaderLauncher.intentFor(c, book.appPackage)
+            else Intent(c, BookActivity::class.java).putExtra(BookActivity.EXTRA_BOOK_ID, book.id)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             v.setOnClickPendingIntent(R.id.wBook, PendingIntent.getActivity(
                 c, 1, launch, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
         } else {
