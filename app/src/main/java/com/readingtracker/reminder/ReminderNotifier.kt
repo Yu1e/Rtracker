@@ -16,6 +16,9 @@ import com.readingtracker.ui.book.BookActivity
 object ReminderNotifier {
 
     suspend fun check(context: Context) {
+        // Не беспокоить ночью: уведомления только с 10 до 22
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        if (hour !in 10..21) return
         val db = AppDatabase.getInstance(context)
         val now = System.currentTimeMillis()
         val books = db.bookDao().getBooksToNotify(
