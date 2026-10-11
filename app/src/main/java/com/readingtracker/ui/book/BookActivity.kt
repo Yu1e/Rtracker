@@ -126,7 +126,7 @@ class BookActivity : AppCompatActivity() {
             appendLine("Время за чтением: ${formatMinutes(bk.totalMinutes)}")
             appendLine("Дней на книгу: ${BookActions.daysOnBook(bk)}" +
                 if (bk.endDate == null) " (и продолжается)" else "")
-            appendLine("Дней, когда читала: $readingDays")
+            appendLine("Дней с чтением: $readingDays")
             if (readingDays > 0) appendLine("В среднем за день чтения: ${formatMinutes(bk.totalMinutes / readingDays)}")
             appendLine("Подходов к книге: ${sessions.size}")
             sessions.lastOrNull()?.let {

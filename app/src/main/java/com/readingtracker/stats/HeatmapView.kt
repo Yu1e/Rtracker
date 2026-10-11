@@ -89,7 +89,7 @@ class HeatmapView @JvmOverloads constructor(
                 val x = labelW + w * cell
                 val y = r * cell
                 rect.set(x + gap / 2, y + gap / 2, x + cell - gap / 2, y + cell - gap / 2)
-                cellPaint.color = levels[level(data[day] ?: 0)]
+                cellPaint.color = com.readingtracker.ui.home.Ribbons.heat(context, level(data[day] ?: 0))
                 canvas.drawRoundRect(rect, 3 * dp, 3 * dp, cellPaint)
                 if (day == selected) canvas.drawRoundRect(rect, 3 * dp, 3 * dp, ringPaint)
             }

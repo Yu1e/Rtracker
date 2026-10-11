@@ -44,6 +44,9 @@ class BooksAdapter(
             val days = BookActions.daysOnBook(book)
             b.tvMeta.text = "${book.appName}  ·  $dates  ·  дней: $days"
 
+            val accent = com.readingtracker.ui.home.Ribbons.accent(b.root.context)
+            b.tvAsk.setTextColor(accent)
+            b.tvTime.setTextColor(accent)
             b.tvTime.text = if (book.totalMinutes > 0) formatMinutes(book.totalMinutes) else ""
             b.tvTime.visibility = if (book.totalMinutes > 0) View.VISIBLE else View.GONE
 

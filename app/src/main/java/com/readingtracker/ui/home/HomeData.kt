@@ -17,10 +17,12 @@ data class HomeData(
     val week: IntArray,
     val todayIndex: Int,
     val book: Book?,
+    /** Читаемые книги для стопки: первая — сверху (читалась последней), не больше трёх. */
+    val reading: List<Book>,
     val bookMinutes: Long,
     val bricks: List<BookCoverView.Brick>,
     val finishedThisMonth: List<Book>,
-    val ghost: Boolean,
+    val ghosts: Int,
     val todayMinutes: Long,
     val streak: Int,
     val record: Int
@@ -44,9 +46,13 @@ data class HomeData(
             ).minOrNull() ?: today
             val dayNumber = (ChronoUnit.DAYS.between(first, today) + 1).toInt().coerceAtLeast(1)
 
-            // Книга «сейчас читаю»: последняя из читаемых
-            val book = st.currentBook?.takeIf { it.status == Book.STATUS_READING }
-                ?: books.filter { it.status == Book.STATUS_READING }.maxByOrNull { it.startDate }
+            // Книги «сейчас читаю»: сверху та, что читалась последней
+            val lastRead = HashMap<Long, Long>()
+            for (s in sessions) lastRead[s.bookId] = maxOf(lastRead[s.bookId] ?: 0L, s.endTime ?: s.startTime)
+            val reading = books.filter { it.status == Book.STATUS_READING }
+                .sortedByDescending { lastRead[it.id] ?: it.startDate }
+                .take(3)
+            val book = reading.firstOrNull()
 
             var bookMinutes = 0L
             var bricks = emptyList<BookCoverView.Brick>()
@@ -71,10 +77,11 @@ data class HomeData(
                 week = week,
                 todayIndex = todayIndex,
                 book = book,
+                reading = reading,
                 bookMinutes = bookMinutes,
                 bricks = bricks,
                 finishedThisMonth = finished,
-                ghost = book != null,
+                ghosts = reading.size,
                 todayMinutes = st.todayMinutes,
                 streak = st.currentStreak,
                 record = maxOf(st.bestStreak, st.currentStreak)

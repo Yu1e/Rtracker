@@ -1,5 +1,6 @@
 package com.readingtracker.ui.home
 
+import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
@@ -38,23 +39,78 @@ object Ribbons {
         RibbonPalette(c(0xFFFF5C8A), c(0xFFE04A76), c(0xFFA3304F), c(0xFF1C1C1C), c(0xFF333333))  // малиновый, чёрный
     )
 
+    /** Семейства похожих цветов: у книг, которые читаются одновременно, ленты из разных семейств. */
+    private val family = intArrayOf(0, 1, 3, 0, 2, 3, 1, 2)
+
     val fallback = palettes[0]
 
-    /** Цвета и узор назначаются книге раз и навсегда: выводятся из её номера. */
-    fun paletteFor(bookId: Long): RibbonPalette =
-        palettes[Random(bookId * 7919 + 17).nextInt(palettes.size)]
+    private fun hashIndex(bookId: Long) = Random(bookId * 7919 + 17).nextInt(palettes.size)
 
     fun patternFor(bookId: Long): RibbonPattern =
         RibbonPattern.values()[Random(bookId * 104729 + 3).nextInt(RibbonPattern.values().size)]
 
-    /** Палитра книги, которая сейчас на главном экране: из неё берутся цвета нажатий. */
+    private fun prefs(ctx: Context) = ctx.applicationContext.getSharedPreferences("ribbons", Context.MODE_PRIVATE)
+
+    /**
+     * Цвет ленты закрепляется за книгой раз и навсегда (хранится в настройках).
+     * Книги идут от давно начатых к новым; если цвет книги из того же семейства,
+     * что у читаемой рядом, ей подбирается другой — и тоже запоминается.
+     */
+    fun assign(ctx: Context, bookIdsOldestFirst: List<Long>): Map<Long, RibbonPalette> {
+        val pr = prefs(ctx)
+        val ed = pr.edit()
+        val taken = mutableSetOf<Int>()
+        val out = LinkedHashMap<Long, RibbonPalette>()
+        for (id in bookIdsOldestFirst) {
+            var idx = pr.getInt("p_$id", -1)
+            if (idx !in palettes.indices || (family[idx] in taken && taken.size < 4)) {
+                val start = if (idx in palettes.indices) idx else hashIndex(id)
+                idx = (0 until palettes.size).map { (start + it * 3) % palettes.size }
+                    .firstOrNull { family[it] !in taken } ?: start
+                ed.putInt("p_$id", idx)
+            }
+            taken += family[idx]
+            out[id] = palettes[idx]
+        }
+        ed.apply()
+        return out
+    }
+
+    /** Палитра книги сверху стопки: из неё берутся цвета нажатий и акценты других экранов. */
     @Volatile var current: RibbonPalette = fallback
+
+    fun setCurrent(ctx: Context, pal: RibbonPalette) {
+        current = pal
+        prefs(ctx).edit().putInt("current", palettes.indexOf(pal).coerceAtLeast(0)).apply()
+    }
+
+    /** Акцент для других экранов (графики, теплокарта, список книг): основа ленты, читаемая на фоне. */
+    fun accent(ctx: Context): Int {
+        val bg = RtColors.c(ctx, com.readingtracker.R.color.rt_bg)
+        val p = current
+        return if (RtColors.contrast(bg, p.base) >= 2.6) p.base
+            else RtColors.mostReadable(bg, p.base, p.edge, p.stripe, RtColors.mix(p.base, RtColors.c(ctx, com.readingtracker.R.color.rt_ink), 0.4f))
+    }
+
+    /** Ступени теплокарты: 0 — нейтральная клетка, 1–4 — всё насыщеннее к цвету акцента. */
+    fun heat(ctx: Context, level: Int): Int {
+        val zero = RtColors.c(ctx, com.readingtracker.R.color.heat_0)
+        if (level <= 0) return zero
+        val t = floatArrayOf(0.3f, 0.55f, 0.8f, 1f)[(level - 1).coerceIn(0, 3)]
+        return RtColors.mix(zero, accent(ctx), t)
+    }
+
+    fun restore(ctx: Context) {
+        current = palettes.getOrElse(prefs(ctx).getInt("current", 0)) { fallback }
+    }
 }
 
+enum class TailKind { DOWN, UP, SIDE }
+
 /**
- * Маршрут ленты в координатах обложки (обложка 150×225, страницы снизу до y≈231).
- * Арка выходит из верхнего обреза у корешка и уходит обратно в страницы,
- * хвост выходит из нижнего обреза между страницами и заканчивается бахромой.
+ * Маршрут ленты в координатах обложки (обложка 150×225, страницы справа до x≈156, снизу до y≈231).
+ * Лента крепится слева, у корешка: арка выходит из-под верхнего края обложки и уходит в страницы.
+ * Хвост выходит между страницами снизу, сверху или сбоку и заканчивается бахромой.
  */
 class RibbonRoute(
     val arch: Array<PointF>,
@@ -64,29 +120,45 @@ class RibbonRoute(
     val seed: Long
 ) {
     companion object {
-        /** Новый изгиб при каждом открытии экрана. */
-        fun random(rnd: Random = Random(System.nanoTime())): RibbonRoute {
+        // Характеры хвоста: уходит вбок, висит почти прямо, наискосок (для хвоста вниз)
+        private val SHAPES = arrayOf(
+            floatArrayOf(0f, 0f, 1.5f, 11.4f, 10.5f, 22.4f, 33.5f, 19.4f),
+            floatArrayOf(0f, 0f, 0.5f, 12f, -2.5f, 22f, 3f, 31f),
+            floatArrayOf(0f, 0f, 2f, 10f, 12f, 17f, 22f, 29f)
+        )
+        // Сбоку: выходит из обреза вправо и свешивается вниз
+        private val SIDE = arrayOf(
+            floatArrayOf(0f, 0f, 9f, 0.5f, 15f, 7f, 17f, 26f),
+            floatArrayOf(0f, 0f, 10f, -1f, 19f, 6f, 21f, 22f)
+        )
+
+        fun random(rnd: Random = Random(System.nanoTime()), kind: TailKind = TailKind.DOWN): RibbonRoute {
             fun r(a: Float, b: Float) = a + rnd.nextFloat() * (b - a)
-            val x0 = r(18f, 23f)
-            val w = r(22f, 40f)
-            val h = r(11f, 16f)
+            val x0 = r(16f, 30f)
+            val w = r(22f, 34f)
+            val h = r(11f, 15f)
             val arch = arrayOf(
                 PointF(x0, 6f),
                 PointF(x0 + r(-1f, 3f), -h),
                 PointF(x0 + w * r(0.45f, 0.7f), -h * r(0.95f, 1.1f)),
                 PointF(x0 + w, 6f)
             )
-            val root = r(36f, 92f)
-            val dir = if (root > 52f && rnd.nextFloat() < 0.3f) -1f else 1f
-            val drop = r(18f, 23f)
-            val run = r(20f, 32f)
-            val y0 = 228.6f
-            val tail = arrayOf(
-                PointF(root, y0),
-                PointF(root + dir * r(0.5f, 2.5f), y0 + drop * 0.55f),
-                PointF(root + dir * run * r(0.25f, 0.4f), y0 + drop),
-                PointF(root + dir * run, y0 + drop * r(0.8f, 0.9f))
-            )
+            val len = r(0.92f, 1.08f)
+            val tail = when (kind) {
+                TailKind.DOWN, TailKind.UP -> {
+                    val sh = SHAPES[rnd.nextInt(SHAPES.size)]
+                    val root = r(40f, 128f)
+                    val dir = if (rnd.nextBoolean()) 1f else -1f
+                    val y0 = if (kind == TailKind.DOWN) 228.6f else 2f
+                    val sy = if (kind == TailKind.DOWN) 1f else -1f
+                    Array(4) { k -> PointF(root + dir * sh[2 * k] * len, y0 + sy * sh[2 * k + 1] * len) }
+                }
+                TailKind.SIDE -> {
+                    val sh = SIDE[rnd.nextInt(SIDE.size)]
+                    val y0 = r(60f, 175f)
+                    Array(4) { k -> PointF(152.5f + sh[2 * k] * len, y0 + sh[2 * k + 1] * len) }
+                }
+            }
             val a = r(0.22f, 0.35f)
             val b = (a + r(0.55f, 0.7f)).coerceAtMost(0.98f)
             return RibbonRoute(arch, tail, a, b, rnd.nextLong())
@@ -158,7 +230,7 @@ class RibbonPainter(private val pal: RibbonPalette, private val pattern: RibbonP
 
     private fun piece(
         canvas: Canvas, fr: List<Frame>, entry: Triple<Float, Float, Int>?,
-        fringe: Boolean, shadeK: Float, rnd: Random
+        fringe: Boolean, shadeK: Float, rnd: Random, entryLen: Float = 0f
     ) {
         // Отрезки одной стороны ленты: лицо или изнанка
         val runs = mutableListOf<MutableList<Int>>()
@@ -224,6 +296,16 @@ class RibbonPainter(private val pal: RibbonPalette, private val pattern: RibbonP
                 }
             }
         }
+        // Хвост темнее у самого выхода из страниц
+        if (entryLen > 0f) {
+            for (i in 0 until fr.size - 1) {
+                val s0 = fr[i].s
+                if (s0 < entryLen) {
+                    fill.color = RtColors.withAlpha(shade, (1 - s0 / entryLen) * 0.42f)
+                    poly(canvas, listOf(off(fr[i], 1.05f), off(fr[i + 1], 1.05f), off(fr[i + 1], -1.05f), off(fr[i], -1.05f)), fill)
+                }
+            }
+        }
         // Бахрома
         if (fringe) {
             val f = fr.last(); val front = f.c >= 0
@@ -255,6 +337,6 @@ class RibbonPainter(private val pal: RibbonPalette, private val pattern: RibbonP
         minW = 0.28f
         val a = route.twistFrom; val b = route.twistTo
         val tail = frames(bezier(route.tail, 180), { u -> (PI * smooth((u - a) / (b - a))).toFloat() }, { 1f })
-        piece(canvas, tail, Triple(228.6f, 236f, -1), true, 0.32f, rnd)
+        piece(canvas, tail, null, true, 0.32f, rnd, 7.4f)
     }
 }

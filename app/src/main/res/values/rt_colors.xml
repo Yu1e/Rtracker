@@ -9,15 +9,15 @@
     <color name="rt_tile_stroke">#B4B2A9</color>
 
     <color name="rt_strong">#2C2C2A</color>
-    <color name="rt_on_strong">#FFFFFF</color>
+    <color name="rt_on_strong">#F4F2EC</color>
     <color name="rt_on_strong2">#D3D1C7</color>
 
     <color name="rt_ring_bg">#2C2C2A</color>
     <color name="rt_ring_stroke">#2C2C2A</color>
-    <color name="rt_ring_fg">#FFFFFF</color>
+    <color name="rt_ring_fg">#F1EFE9</color>
     <color name="rt_ring_sub">#D3D1C7</color>
     <color name="rt_ring_track">#5F5E5A</color>
-    <color name="rt_ring_prog">#FFFFFF</color>
+    <color name="rt_ring_prog">#ECEAE3</color>
     <color name="rt_ring_track2">#444441</color>
     <color name="rt_ring_prog2">#B4B2A9</color>
 
@@ -32,11 +32,11 @@
     <color name="rt_cover_stroke">#2C2C2A</color>
     <color name="rt_cover_hinge">#D3D1C7</color>
     <color name="rt_board">#EDEBE4</color>
-    <color name="rt_pages">#FFFFFF</color>
+    <color name="rt_pages">#F5F3EE</color>
     <color name="rt_page_line">#B4B2A9</color>
     <color name="rt_spine">#DCDAD2</color>
 
-    <color name="rt_band">#FFFFFF</color>
+    <color name="rt_band">#F9F7F2</color>
     <color name="rt_band_stroke">#2C2C2A</color>
     <color name="rt_band_rule">#D3D1C7</color>
     <color name="rt_band_text">#2C2C2A</color>
@@ -59,4 +59,7 @@
 
     <color name="rt_reader_stroke">#888780</color>
     <color name="rt_nav_line">#D3D1C7</color>
+    <color name="rt_cover2">#B4B2A9</color>
+    <color name="rt_cover3">#5F5E5A</color>
+    <color name="rt_cover4">#888780</color>
 </resources>

@@ -71,7 +71,7 @@ class StatsFragment : Fragment() {
             "В этом месяце" to formatHours(s.monthMinutes)
         )
         if (s.currentStreak > 0 && !s.readToday) {
-            note("Сегодня ещё не читала — стрик продолжится, если открыть книгу до полуночи.")
+            note("Сегодня ещё не читалось — стрик продолжится, если открыть книгу до полуночи.")
         }
         if (s.bestStreak > s.currentStreak && s.currentStreak > 0) {
             note("До рекорда стрика (${s.bestStreak}) осталось ${s.bestStreak - s.currentStreak} ${daysWord(s.bestStreak - s.currentStreak)}.")
@@ -86,7 +86,7 @@ class StatsFragment : Fragment() {
         heat.setData(s.dayMinutes, s.today)
         heat.onDaySelected = { day, m ->
             dayInfo.text = "${day.format(DateTimeFormatter.ofPattern("d MMMM, EEEE", Locale("ru")))}: " +
-                if (m > 0) formatMinutes(m) else "не читала"
+                if (m > 0) formatMinutes(m) else "не читалось"
         }
         c.addView(heat)
         heatLegend()
@@ -267,11 +267,10 @@ class StatsFragment : Fragment() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, (6 * dp).toInt(), 0, 0)
         }
-        val names = listOf("не читала", "<15 мин", "<30", "<60", "час+")
-        val colors = listOf(R.color.heat_0, R.color.heat_1, R.color.heat_2, R.color.heat_3, R.color.heat_4)
-        colors.forEachIndexed { i, col ->
+        val names = listOf("не читалось", "<15 мин", "<30", "<60", "час+")
+        (0..4).forEach { i ->
             row.addView(View(requireContext()).apply {
-                setBackgroundColor(ContextCompat.getColor(requireContext(), col))
+                setBackgroundColor(com.readingtracker.ui.home.Ribbons.heat(requireContext(), i))
                 layoutParams = LinearLayout.LayoutParams((12 * dp).toInt(), (12 * dp).toInt()).apply {
                     marginStart = if (i == 0) 0 else (8 * dp).toInt(); marginEnd = (3 * dp).toInt()
                 }
@@ -292,12 +291,8 @@ class StatsFragment : Fragment() {
         return if (tv.resourceId != 0) ContextCompat.getColor(requireContext(), tv.resourceId) else tv.data
     }
 
-    private fun formatHours(minutes: Long): String =
-        if (minutes < 60) "$minutes мин"
-        else {
-            val h = minutes / 60.0
-            if (h < 10) String.format(Locale("ru"), "%.1f ч", h) else "${h.roundToInt()} ч"
-        }
+    /** Без дробей: «1 ч 19 мин». */
+    private fun formatHours(minutes: Long): String = formatMinutes(minutes)
 
     private fun fmtDays(d: Double): String =
         if (d == d.toInt().toDouble()) "${d.toInt()}" else String.format(Locale("ru"), "%.1f", d)

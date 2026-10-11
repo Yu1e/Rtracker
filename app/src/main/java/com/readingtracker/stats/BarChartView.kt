@@ -88,6 +88,7 @@ class BarChartView @JvmOverloads constructor(
                 // Скруглён только верх, низ стоит на базовой линии
                 path.reset()
                 path.addRoundRect(rect, floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f), Path.Direction.CW)
+                barPaint.color = com.readingtracker.ui.home.Ribbons.accent(context)
                 barPaint.alpha = if (selected == -1 || selected == i) 255 else 140
                 canvas.drawPath(path, barPaint)
             }

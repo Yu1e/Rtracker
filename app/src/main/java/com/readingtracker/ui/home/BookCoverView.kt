@@ -2,6 +2,7 @@ package com.readingtracker.ui.home
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
@@ -14,11 +15,13 @@ import android.view.View
 import com.readingtracker.R
 import com.readingtracker.ui.Fonts
 import com.readingtracker.ui.RtColors
+import kotlin.random.Random
 
 /**
- * Книга «сейчас читаю»: обложка с условным объёмом (страницы, вторая крышка, торец корешка),
- * манжетка с общим временем и шкалой дней, цветное ляссе.
- * Всё рисуется в dp; обложка 150×225 лежит в точке (OX, OY) внутри вида.
+ * Книги «сейчас читаю» стопкой (до трёх). Сверху — та, что читалась последней:
+ * на ней автор, название и манжетка с общим временем и шкалой дней.
+ * У каждой книги своё цветное ляссе; раскладка стопки и изгибы лент меняются при каждом открытии.
+ * Всё рисуется в dp; одна книга — обложка 150×225 в точке (OX, OY).
  */
 class BookCoverView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
@@ -26,16 +29,27 @@ class BookCoverView @JvmOverloads constructor(
 
     enum class Brick { READ, EMPTY, TODAY_READ, TODAY_EMPTY }
 
+    data class Item(
+        val id: Long,
+        val author: String,
+        val title: String,
+        val palette: RibbonPalette,
+        val pattern: RibbonPattern
+    )
+
+    private class Placed(
+        val item: Item, val x: Float, val y: Float, val rot: Float, val s: Float,
+        val coverRes: Int, val route: RibbonRoute
+    )
+
     private val d = resources.displayMetrics.density
 
-    private var author: String = ""
-    private var title: String = ""
+    private var items: List<Item> = emptyList()   // сверху стопки — первая
+    private var emptyText: String = ""
     private var timeText: String = ""
     private var bricks: List<Brick> = emptyList()
-    private var hasBook = false
-    private var palette: RibbonPalette = Ribbons.fallback
-    private var pattern: RibbonPattern = RibbonPattern.DIAMONDS
-    private var route: RibbonRoute = RibbonRoute.random()
+    private var shuffleSeed: Long = System.nanoTime()
+    private var placed: List<Placed> = emptyList()  // снизу вверх
     private var titleLayout: StaticLayout? = null
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
@@ -46,49 +60,107 @@ class BookCoverView @JvmOverloads constructor(
 
     private fun col(id: Int) = RtColors.c(context, id)
 
-    fun setBook(
-        author: String, title: String, timeText: String, bricks: List<Brick>,
-        palette: RibbonPalette, pattern: RibbonPattern
-    ) {
-        this.hasBook = true
-        this.author = author
-        this.title = title
+    fun setBooks(items: List<Item>, timeText: String, bricks: List<Brick>) {
+        this.items = items.take(3)
         this.timeText = timeText
         this.bricks = bricks
-        this.palette = palette
-        this.pattern = pattern
         titleLayout = null
-        contentDescription = listOf(author, title, timeText).filter { it.isNotBlank() }.joinToString(", ")
+        arrange()
+        val top = this.items.firstOrNull()
+        contentDescription = buildString {
+            if (top != null) append(listOf(top.author, top.title, timeText).filter { it.isNotBlank() }.joinToString(", "))
+            if (this@BookCoverView.items.size > 1) append(". Ещё читается: ${this@BookCoverView.items.size - 1}")
+        }
         invalidate()
     }
 
     fun setEmpty(text: String) {
-        hasBook = false
-        author = ""
-        title = text
+        items = emptyList()
+        emptyText = text
         timeText = ""
         bricks = emptyList()
         titleLayout = null
+        placed = emptyList()
         contentDescription = text
         invalidate()
     }
 
-    /** Новый изгиб ленты. */
-    fun reshuffleRibbon() { route = RibbonRoute.random(); invalidate() }
+    /** Новая раскладка стопки и новые изгибы лент. */
+    fun reshuffle() {
+        shuffleSeed = System.nanoTime()
+        arrange()
+        invalidate()
+    }
+
+    // ── Раскладка ─────────────────────────────────────────────────────────────
+
+    private class Slot(val x: Float, val y: Float, val rot: Float, val s: Float, val kinds: List<TailKind>)
+    private class Template(val under: List<Slot>, val top: Slot)
+
+    private val templates = listOf(
+        // Уступом: нижние выглядывают сверху справа и снизу слева
+        Template(
+            listOf(Slot(30f, 0f, 4f, 0.84f, listOf(TailKind.UP)), Slot(0f, 40f, -3f, 0.80f, listOf(TailKind.DOWN))),
+            Slot(14f, 22f, 0f, 0.82f, listOf(TailKind.DOWN, TailKind.UP, TailKind.SIDE))
+        ),
+        // Башня: нижние выглядывают сверху
+        Template(
+            listOf(Slot(4f, 0f, -2f, 0.83f, listOf(TailKind.UP)), Slot(20f, 12f, 3f, 0.80f, listOf(TailKind.UP, TailKind.SIDE))),
+            Slot(8f, 28f, 0f, 0.82f, listOf(TailKind.DOWN, TailKind.SIDE))
+        ),
+        // Развал: нижние разъехались в стороны
+        Template(
+            listOf(Slot(40f, 26f, 8f, 0.80f, listOf(TailKind.DOWN)), Slot(-4f, 10f, -5f, 0.84f, listOf(TailKind.UP))),
+            Slot(12f, 18f, 1f, 0.82f, listOf(TailKind.DOWN, TailKind.UP))
+        )
+    )
+
+    private val underCovers = listOf(R.color.rt_cover2, R.color.rt_cover3, R.color.rt_cover4)
+
+    private fun arrange() {
+        val rnd = Random(shuffleSeed)
+        val n = items.size
+        if (n == 0) { placed = emptyList(); return }
+        if (n == 1) {
+            placed = listOf(Placed(items[0], 0f, 0f, 0f, 1f, R.color.rt_cover, RibbonRoute.random(rnd, TailKind.DOWN)))
+            return
+        }
+        val t = templates[rnd.nextInt(templates.size)]
+        val under = if (n == 3) t.under else listOf(t.under[rnd.nextInt(t.under.size)])
+        val slots = under + t.top
+        fun j(a: Float) = (rnd.nextFloat() * 2 - 1) * a
+        // Хвосты: у каждой книги свой вид из доступных; все одинаковые — только если иначе нельзя
+        val kinds = slots.map { it.kinds[rnd.nextInt(it.kinds.size)] }.toMutableList()
+        if (kinds.distinct().size == 1) {
+            val i = slots.indexOfFirst { s -> s.kinds.any { it != kinds[0] } }
+            if (i >= 0) kinds[i] = slots[i].kinds.first { it != kinds[0] }
+        }
+        val covers = underCovers.shuffled(rnd)
+        // items: первая — сверху; slots: снизу вверх
+        val order = items.reversed()
+        placed = slots.mapIndexed { i, s ->
+            val isTop = i == slots.size - 1
+            Placed(
+                order[i], s.x + j(3f), s.y + j(3f), s.rot + (if (isTop) j(0.8f) else j(1.5f)), s.s,
+                if (isTop) R.color.rt_cover else covers[i % covers.size],
+                RibbonRoute.random(rnd, kinds[i])
+            )
+        }
+    }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         setMeasuredDimension(resolveSize((W * d).toInt(), widthMeasureSpec), resolveSize((H * d).toInt(), heightMeasureSpec))
     }
 
-    private fun buildTitle(): StaticLayout {
+    private fun buildTitle(text: String, hasBook: Boolean): StaticLayout {
         titlePaint.color = col(if (hasBook) R.color.rt_ink else R.color.rt_ink2)
-        if (!hasBook) titlePaint.typeface = Fonts.regular(context) else titlePaint.typeface = Fonts.semibold(context)
+        titlePaint.typeface = if (hasBook) Fonts.semibold(context) else Fonts.regular(context)
         val width = (150f - 20f - 12f).toInt()
         // Длинное слово не рвём посередине: уменьшаем кегль, пока самое длинное слово не влезет
         titlePaint.textSize = 19f
-        val longest = title.split(Regex("\\s+")).maxByOrNull { titlePaint.measureText(it) } ?: ""
+        val longest = text.split(Regex("\\s+")).maxByOrNull { titlePaint.measureText(it) } ?: ""
         while (titlePaint.textSize > 13f && titlePaint.measureText(longest) > width) titlePaint.textSize -= 1f
-        return StaticLayout.Builder.obtain(title, 0, title.length, titlePaint, width)
+        return StaticLayout.Builder.obtain(text, 0, text.length, titlePaint, width)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setLineSpacing(0f, 1.15f)
             .setMaxLines(if (hasBook) 4 else 5)
@@ -102,7 +174,23 @@ class BookCoverView @JvmOverloads constructor(
         canvas.save()
         canvas.scale(d, d)
         canvas.translate(OX, OY)
+        if (placed.isEmpty()) {
+            drawBook(canvas, null, R.color.rt_cover, null, true)
+        } else {
+            for ((i, p) in placed.withIndex()) {
+                canvas.save()
+                canvas.translate(p.x, p.y)
+                canvas.rotate(p.rot)
+                canvas.scale(p.s, p.s)
+                drawBook(canvas, p.item, p.coverRes, p.route, i == placed.size - 1)
+                canvas.restore()
+            }
+        }
+        canvas.restore()
+    }
 
+    /** Одна книга в своих координатах: обложка 150×225 в точке (0, 0). */
+    private fun drawBook(canvas: Canvas, item: Item?, coverRes: Int, route: RibbonRoute?, isTop: Boolean) {
         // Задняя крышка
         fill.color = col(R.color.rt_board)
         val back = RectF(9f, 8.1f, 159f, 233.1f)
@@ -140,31 +228,34 @@ class BookCoverView @JvmOverloads constructor(
         stroke.color = col(R.color.rt_cover_stroke); stroke.strokeWidth = 1.1f; stroke.strokeJoin = Paint.Join.ROUND
         canvas.drawPath(spine, stroke)
 
-        // Ляссе: под обложкой сверху, между страницами снизу
-        if (hasBook) RibbonPainter(palette, pattern).draw(canvas, route)
+        // Ляссе: под обложкой сверху, между страницами снизу, сверху или сбоку
+        if (item != null && route != null) RibbonPainter(item.palette, item.pattern).draw(canvas, route)
 
         // Обложка
         val cover = RectF(0.75f, 0.75f, 149.25f, 224.25f)
-        fill.color = col(R.color.rt_cover); canvas.drawRoundRect(cover, 3f, 3f, fill)
+        val coverColor = col(coverRes)
+        fill.color = coverColor; canvas.drawRoundRect(cover, 3f, 3f, fill)
         stroke.color = col(R.color.rt_cover_stroke); stroke.strokeWidth = 1.5f
         canvas.drawRoundRect(cover, 3f, 3f, stroke)
-        fill.color = col(R.color.rt_cover_hinge)
+        fill.color = if (coverRes == R.color.rt_cover) col(R.color.rt_cover_hinge)
+            else RtColors.withAlpha(if (RtColors.luminance(coverColor) < 0.25) Color.WHITE else Color.BLACK, 0.16f)
         canvas.drawRect(10f, 1.5f, 11f, 223.5f, fill)
+
+        if (!isTop) return
 
         // Автор и название
         var y = 14f
+        val author = item?.author ?: ""
         if (author.isNotBlank()) {
             authorPaint.color = col(R.color.rt_ink2)
             val a = TextUtils.ellipsize(author, authorPaint, 118f, TextUtils.TruncateAt.END).toString()
             canvas.drawText(a, 20f, y - authorPaint.ascent(), authorPaint)
             y += authorPaint.descent() - authorPaint.ascent() + 6f
         }
-        val tl = titleLayout ?: buildTitle().also { titleLayout = it }
+        val tl = titleLayout ?: buildTitle(item?.title ?: emptyText, item != null).also { titleLayout = it }
         canvas.save(); canvas.translate(20f, y); tl.draw(canvas); canvas.restore()
 
-        if (hasBook) drawBand(canvas)
-
-        canvas.restore()
+        if (item != null) drawBand(canvas)
     }
 
     /** Манжетка: узкая бумажная полоса, края загнуты под обложку, слева чуть отстаёт. */
@@ -224,10 +315,10 @@ class BookCoverView @JvmOverloads constructor(
     }
 
     companion object {
-        /** Сдвиг обложки внутри вида: слева запас под торец корешка, сверху — под арку ляссе. */
+        /** Сдвиг стопки внутри вида: слева запас под торец корешка, сверху — под арки и хвосты ляссе. */
         const val OX = 6f
         const val OY = 30f
-        const val W = 170f
+        const val W = 176f
         const val H = 292f
     }
 }

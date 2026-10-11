@@ -45,13 +45,10 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         Fonts.apply(view)
-        // Новый изгиб ляссе при каждом открытии
-        b.bookCover.reshuffleRibbon()
+        // Стопка, изгибы ляссе и призраки на полке — по-новому при каждом открытии
+        b.bookCover.reshuffle()
+        b.shelf.reshuffle()
 
-        b.tvDayNumber.setOnClickListener {
-            val n = data?.dayNumber ?: return@setOnClickListener
-            Toast.makeText(requireContext(), "статистика ведётся непрерывно, дней: $n", Toast.LENGTH_SHORT).show()
-        }
         b.bookCover.setOnClickListener {
             val book = data?.book
             if (book != null) BookActivity.open(requireContext(), book.id) else BookActivity.create(requireContext())
@@ -83,44 +80,41 @@ class HomeFragment : Fragment() {
     private fun render(d: HomeData) {
         val ctx = requireContext()
 
-        // Шапка
-        val wd = arrayOf("пн", "вт", "ср", "чт", "пт", "сб", "вс")[d.today.dayOfWeek.value - 1]
-        b.tvDate.text = "$wd, ${d.today.dayOfMonth} ${MONTHS_GEN[d.today.monthValue - 1]}"
-        b.tvDayNumber.text = "№ ${d.dayNumber}"
-
         // Неделя
         b.weekBars.set(d.week, d.todayIndex)
 
-        // Книга
+        // Книги стопкой
         val book = d.book
         if (book != null) {
-            val pal = Ribbons.paletteFor(book.id)
-            Ribbons.current = pal
-            b.bookCover.setBook(
-                author = book.author,
-                title = book.title.ifBlank { "без названия" },
-                timeText = formatHM(d.bookMinutes),
-                bricks = d.bricks,
-                palette = pal,
-                pattern = Ribbons.patternFor(book.id)
-            )
+            val pals = Ribbons.assign(ctx, d.reading.sortedBy { it.startDate }.map { it.id })
+            val items = d.reading.map {
+                BookCoverView.Item(
+                    id = it.id,
+                    author = it.author,
+                    title = it.title.ifBlank { "без названия" },
+                    palette = pals[it.id] ?: Ribbons.fallback,
+                    pattern = Ribbons.patternFor(it.id)
+                )
+            }
+            Ribbons.setCurrent(ctx, items.first().palette)
+            b.bookCover.setBooks(items, formatHM(d.bookMinutes), d.bricks)
         } else {
-            Ribbons.current = Ribbons.fallback
+            Ribbons.setCurrent(ctx, Ribbons.fallback)
             b.bookCover.setEmpty("здесь появится книга, которую вы читаете")
         }
 
         // Полка
         b.tvShelfTitle.text = "книг за ${MONTHS_NOM[d.today.monthValue - 1]}"
         val count = SpannableStringBuilder(d.finishedThisMonth.size.toString())
-        if (d.ghost) {
+        if (d.ghosts > 0) {
             val start = count.length
-            count.append("+1")
+            count.append("+${d.ghosts}")
             count.setSpan(RelativeSizeSpan(0.44f), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             count.setSpan(SuperscriptSpan(), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             count.setSpan(ForegroundColorSpan(col(R.color.rt_ink3)), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
         b.tvMonthCount.text = count
-        b.shelf.set(d.finishedThisMonth.map { it.id }, d.ghost)
+        b.shelf.set(d.finishedThisMonth.map { it.id }, d.ghosts)
 
         // Читалки
         val readers = Constants.detectTrackedApps(ctx).entries.distinctBy { it.value }.take(4)

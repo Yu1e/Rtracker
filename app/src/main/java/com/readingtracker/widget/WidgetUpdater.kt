@@ -65,7 +65,7 @@ object WidgetUpdater {
         }
     }
 
-    private fun hours(m: Long) = if (m < 60) "$m мин" else String.format(Locale("ru"), "%.1f ч", m / 60.0)
+    private fun hours(m: Long) = com.readingtracker.ui.book.formatMinutes(m)
 
     private fun build(c: Context, s: Stats): RemoteViews {
         val v = RemoteViews(c.packageName, R.layout.widget_reading)
@@ -77,7 +77,7 @@ object WidgetUpdater {
         val record = when {
             s.currentStreak == 0 && s.bestStreak == 0 -> "Открой книгу — начнётся стрик"
             s.currentStreak == 0 -> "Рекорд ${s.bestStreak} ${daysWord(s.bestStreak)}. Начни новый стрик сегодня"
-            !s.readToday -> "Сегодня ещё не читала — стрик ждёт. Рекорд: ${s.bestStreak}"
+            !s.readToday -> "Сегодня ещё не читалось — стрик ждёт. Рекорд: ${s.bestStreak}"
             s.currentStreak >= s.bestStreak -> "Это рекордный стрик!"
             else -> "До рекорда (${s.bestStreak}) осталось ${s.bestStreak - s.currentStreak} ${daysWord(s.bestStreak - s.currentStreak)}"
         }

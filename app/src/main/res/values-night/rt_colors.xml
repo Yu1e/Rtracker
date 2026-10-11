@@ -2,22 +2,22 @@
 <!-- Ч/б дизайн главного экрана, тёмная тема -->
 <resources>
     <color name="rt_bg">#0F0F0E</color>
-    <color name="rt_ink">#EDEBE4</color>
+    <color name="rt_ink">#D6D4CC</color>
     <color name="rt_ink2">#A3A19A</color>
     <color name="rt_ink3">#6E6D68</color>
     <color name="rt_tile">#1C1C1A</color>
     <color name="rt_tile_stroke">#3A3A37</color>
 
-    <color name="rt_strong">#EDEBE4</color>
+    <color name="rt_strong">#BEBCB4</color>
     <color name="rt_on_strong">#0F0F0E</color>
     <color name="rt_on_strong2">#5F5E5A</color>
 
     <color name="rt_ring_bg">#2A2A27</color>
     <color name="rt_ring_stroke">#3A3A37</color>
-    <color name="rt_ring_fg">#EDEBE4</color>
+    <color name="rt_ring_fg">#D6D4CC</color>
     <color name="rt_ring_sub">#A3A19A</color>
     <color name="rt_ring_track">#3E3D3A</color>
-    <color name="rt_ring_prog">#D3D1C7</color>
+    <color name="rt_ring_prog">#ADABA3</color>
     <color name="rt_ring_track2">#33332F</color>
     <color name="rt_ring_prog2">#888780</color>
 
@@ -25,38 +25,41 @@
     <color name="rt_bar1">#4A4945</color>
     <color name="rt_bar2">#77756E</color>
     <color name="rt_bar3">#B4B2A9</color>
-    <color name="rt_bar4">#EDEBE4</color>
+    <color name="rt_bar4">#C4C2BA</color>
     <color name="rt_bar_zero_text">#4A4945</color>
 
     <color name="rt_cover">#1F1F1D</color>
-    <color name="rt_cover_stroke">#D3D1C7</color>
+    <color name="rt_cover_stroke">#A9A79F</color>
     <color name="rt_cover_hinge">#3A3A37</color>
     <color name="rt_board">#2A2A27</color>
     <color name="rt_pages">#3A3A37</color>
     <color name="rt_page_line">#6E6D68</color>
     <color name="rt_spine">#2E2E2B</color>
 
-    <color name="rt_band">#E4E2DA</color>
-    <color name="rt_band_stroke">#D3D1C7</color>
-    <color name="rt_band_rule">#B4B2A9</color>
+    <color name="rt_band">#B9B7AF</color>
+    <color name="rt_band_stroke">#A9A79F</color>
+    <color name="rt_band_rule">#A3A19A</color>
     <color name="rt_band_text">#0F0F0E</color>
-    <color name="rt_band_fold">#A3A19A</color>
+    <color name="rt_band_fold">#959389</color>
     <color name="rt_band_shadow">#99000000</color>
     <color name="rt_brick">#77756E</color>
     <color name="rt_brick_today">#0F0F0E</color>
     <color name="rt_brick_empty">#A3A19A</color>
 
-    <color name="rt_book_d">#E4E2DA</color>
+    <color name="rt_book_d">#BEBCB4</color>
     <color name="rt_book_m">#A3A19A</color>
     <color name="rt_book_l">#77756E</color>
-    <color name="rt_book_cap">#FFFFFF</color>
+    <color name="rt_book_cap">#D6D4CC</color>
     <color name="rt_ghost">#6E6D68</color>
     <color name="rt_ghost_stripe">#3E3D3A</color>
-    <color name="rt_shelf">#D3D1C7</color>
+    <color name="rt_shelf">#B4B2A9</color>
 
     <color name="rt_block_ghost">#6E6D68</color>
     <color name="rt_block_ghost_big">#4A4945</color>
 
     <color name="rt_reader_stroke">#4A4945</color>
     <color name="rt_nav_line">#2E2E2B</color>
+    <color name="rt_cover2">#34342F</color>
+    <color name="rt_cover3">#4A4945</color>
+    <color name="rt_cover4">#5C5B56</color>
 </resources>

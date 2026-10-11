@@ -11,41 +11,13 @@
         android:paddingStart="16dp"
         android:paddingTop="16dp"
         android:paddingEnd="16dp"
-        android:paddingBottom="16dp">
-
-        <!-- Дата и номер дня -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="28dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/tvDate"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textColor="@color/rt_ink2"
-                android:textSize="14dp" />
-
-            <TextView
-                android:id="@+id/tvDayNumber"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/rt_pill"
-                android:paddingStart="8dp"
-                android:paddingTop="3dp"
-                android:paddingEnd="8dp"
-                android:paddingBottom="3dp"
-                android:textColor="@color/rt_ink"
-                android:textSize="13dp" />
-        </LinearLayout>
+        android:paddingBottom="16dp"
+        android:clipChildren="false">
 
         <!-- минут чтения по дням -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
             android:background="@drawable/rt_tile_18"
             android:orientation="vertical"
             android:paddingStart="12dp"
@@ -74,6 +46,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="-4dp"
+            android:clipChildren="false"
             android:orientation="horizontal">
 
             <com.readingtracker.ui.home.BookCoverView
@@ -85,7 +58,7 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="225dp"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="6dp"
                 android:layout_marginTop="30dp"
                 android:layout_weight="1"
                 android:orientation="vertical">
