@@ -91,6 +91,7 @@ class SettingsFragment : Fragment() {
         b.btnRestore.setOnClickListener {
             openBackup.launch(arrayOf("application/json", "application/octet-stream", "text/plain", "*/*"))
         }
+        buildGoalChips()
 
         b.btnA11y.setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -183,6 +184,22 @@ class SettingsFragment : Fragment() {
         appendLine()
         appendLine("Последняя ошибка:")
         appendLine("  ${Diag.get(c, Diag.ERROR) ?: "нет"}")
+    }
+
+    // ── Цель дня ──────────────────────────────────────────────────────────────
+
+    private fun buildGoalChips() {
+        val ctx = requireContext()
+        val current = Prefs.goalMinutes(ctx)
+        b.goalChips.removeAllViews()
+        for (m in listOf(15, 30, 45, 60, 90, 120)) {
+            b.goalChips.addView(com.google.android.material.chip.Chip(ctx).apply {
+                text = "$m мин"
+                isCheckable = true
+                isChecked = m == current
+                setOnClickListener { Prefs.setGoalMinutes(ctx, m) }
+            })
+        }
     }
 
     // ── Ярлыки читалок ────────────────────────────────────────────────────────

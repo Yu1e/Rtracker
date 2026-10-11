@@ -9,8 +9,9 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
-import androidx.navigation.ui.setupWithNavController
 import com.readingtracker.databinding.ActivityMainBinding
 import androidx.lifecycle.lifecycleScope
 import com.readingtracker.backup.BackupManager
@@ -30,7 +31,24 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
-        binding.bottomNav.setupWithNavController(navHost.navController)
+        val nav = navHost.navController
+        binding.bottomNav.setItems(listOf(
+            R.id.homeFragment to "главная",
+            R.id.booksFragment to "книги",
+            R.id.statsFragment to "статистика",
+            R.id.settingsFragment to "настройки"
+        ))
+        binding.bottomNav.onSelect = { id ->
+            if (nav.currentDestination?.id != id) {
+                val options = NavOptions.Builder()
+                    .setLaunchSingleTop(true)
+                    .setRestoreState(true)
+                    .setPopUpTo(nav.graph.findStartDestination().id, false, true)
+                    .build()
+                nav.navigate(id, null, options)
+            }
+        }
+        nav.addOnDestinationChangedListener { _, dest, _ -> binding.bottomNav.select(dest.id) }
 
         checkPermissions()
     }

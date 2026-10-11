@@ -35,6 +35,10 @@ object Prefs {
     }
     fun lastBackupInfo(c: Context): String? = p(c).getString("last_backup_info", null)
 
+    /** Цель дня в минутах: кольцо «сегодня за книгой». */
+    fun goalMinutes(c: Context): Int = p(c).getInt("goal_minutes", 60)
+    fun setGoalMinutes(c: Context, m: Int) { p(c).edit().putInt("goal_minutes", m).apply() }
+
     fun iconVariant(c: Context): Int = p(c).getInt("icon_variant", 0)
     fun setIconVariant(c: Context, v: Int) { p(c).edit().putInt("icon_variant", v).apply() }
 }

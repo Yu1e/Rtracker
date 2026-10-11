@@ -1,19 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.ReadingTracker" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <item name="colorPrimary">#5C6BC0</item>
-        <item name="colorPrimaryVariant">#3949AB</item>
-        <item name="colorOnPrimary">@android:color/white</item>
-        <item name="colorSecondary">#26A69A</item>
-        <item name="colorOnSecondary">@android:color/white</item>
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
-        <item name="windowActionBar">false</item>
-        <item name="windowNoTitle">true</item>
+    <!-- Ч/б: цвета берутся из rt_colors (светлая) и values-night/rt_colors (тёмная) -->
+    <style name="Theme.ReadingTracker" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/rt_ink</item>
+        <item name="colorPrimaryVariant">@color/rt_ink</item>
+        <item name="colorOnPrimary">@color/rt_bg</item>
+        <item name="colorSecondary">@color/rt_ink</item>
+        <item name="colorOnSecondary">@color/rt_bg</item>
+        <item name="android:windowBackground">@color/rt_bg</item>
+        <item name="android:statusBarColor">@color/rt_bg</item>
+        <item name="android:navigationBarColor">@color/rt_bg</item>
+        <item name="android:windowLightStatusBar">@bool/rt_light_bars</item>
     </style>
 
     <style name="Theme.ReadingTracker.Dialog" parent="Theme.MaterialComponents.DayNight.Dialog">
-        <item name="colorPrimary">#5C6BC0</item>
-        <item name="colorSecondary">#26A69A</item>
+        <item name="colorPrimary">@color/rt_ink</item>
+        <item name="colorSecondary">@color/rt_ink</item>
         <item name="windowNoTitle">true</item>
         <item name="android:windowMinWidthMajor">90%</item>
         <item name="android:windowMinWidthMinor">90%</item>
@@ -26,5 +28,12 @@
         <item name="android:textStyle">bold</item>
         <item name="android:paddingTop">24dp</item>
         <item name="android:paddingBottom">6dp</item>
+    </style>
+
+    <style name="RtLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/rt_ink2</item>
     </style>
 </resources>

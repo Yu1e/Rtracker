@@ -3,21 +3,26 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/booksFragment">
+    app:startDestination="@id/homeFragment">
+
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.readingtracker.ui.home.HomeFragment"
+        android:label="главная" />
 
     <fragment
         android:id="@+id/booksFragment"
         android:name="com.readingtracker.ui.books.BooksFragment"
-        android:label="Книги" />
+        android:label="книги" />
 
     <fragment
         android:id="@+id/statsFragment"
         android:name="com.readingtracker.ui.stats.StatsFragment"
-        android:label="Статистика" />
+        android:label="статистика" />
 
     <fragment
         android:id="@+id/settingsFragment"
         android:name="com.readingtracker.ui.settings.SettingsFragment"
-        android:label="Настройки" />
+        android:label="настройки" />
 
 </navigation>

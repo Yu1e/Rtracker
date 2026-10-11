@@ -32,6 +32,22 @@
             android:layout_height="wrap_content"
             android:orientation="vertical" />
 
+        <!-- Цель дня -->
+        <TextView style="@style/SettingsSection" android:text="цель дня" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:layout_marginBottom="6dp"
+            android:text="Сколько минут чтения в день замыкают кольцо «сегодня за книгой» на главном экране." />
+        <com.google.android.material.chip.ChipGroup
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/goalChips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true" />
+
         <!-- Резервная копия -->
         <TextView style="@style/SettingsSection" android:text="Резервная копия" />
         <TextView

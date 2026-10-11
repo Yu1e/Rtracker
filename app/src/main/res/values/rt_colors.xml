@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ч/б дизайн главного экрана, светлая тема. Тёмная — values-night/rt_colors.xml -->
+<resources>
+    <color name="rt_bg">#FFFFFF</color>
+    <color name="rt_ink">#2C2C2A</color>
+    <color name="rt_ink2">#5F5E5A</color>
+    <color name="rt_ink3">#B4B2A9</color>
+    <color name="rt_tile">#F6F5F1</color>
+    <color name="rt_tile_stroke">#B4B2A9</color>
+
+    <color name="rt_strong">#2C2C2A</color>
+    <color name="rt_on_strong">#FFFFFF</color>
+    <color name="rt_on_strong2">#D3D1C7</color>
+
+    <color name="rt_ring_bg">#2C2C2A</color>
+    <color name="rt_ring_stroke">#2C2C2A</color>
+    <color name="rt_ring_fg">#FFFFFF</color>
+    <color name="rt_ring_sub">#D3D1C7</color>
+    <color name="rt_ring_track">#5F5E5A</color>
+    <color name="rt_ring_prog">#FFFFFF</color>
+    <color name="rt_ring_track2">#444441</color>
+    <color name="rt_ring_prog2">#B4B2A9</color>
+
+    <color name="rt_bar0">#D3D1C7</color>
+    <color name="rt_bar1">#B4B2A9</color>
+    <color name="rt_bar2">#888780</color>
+    <color name="rt_bar3">#5F5E5A</color>
+    <color name="rt_bar4">#2C2C2A</color>
+    <color name="rt_bar_zero_text">#B4B2A9</color>
+
+    <color name="rt_cover">#F6F5F1</color>
+    <color name="rt_cover_stroke">#2C2C2A</color>
+    <color name="rt_cover_hinge">#D3D1C7</color>
+    <color name="rt_board">#EDEBE4</color>
+    <color name="rt_pages">#FFFFFF</color>
+    <color name="rt_page_line">#B4B2A9</color>
+    <color name="rt_spine">#DCDAD2</color>
+
+    <color name="rt_band">#FFFFFF</color>
+    <color name="rt_band_stroke">#2C2C2A</color>
+    <color name="rt_band_rule">#D3D1C7</color>
+    <color name="rt_band_text">#2C2C2A</color>
+    <color name="rt_band_fold">#D3D1C7</color>
+    <color name="rt_band_shadow">#292C2C2A</color>
+    <color name="rt_brick">#888780</color>
+    <color name="rt_brick_today">#2C2C2A</color>
+    <color name="rt_brick_empty">#B4B2A9</color>
+
+    <color name="rt_book_d">#2C2C2A</color>
+    <color name="rt_book_m">#5F5E5A</color>
+    <color name="rt_book_l">#888780</color>
+    <color name="rt_book_cap">#141413</color>
+    <color name="rt_ghost">#9C9A92</color>
+    <color name="rt_ghost_stripe">#D3D1C7</color>
+    <color name="rt_shelf">#2C2C2A</color>
+
+    <color name="rt_block_ghost">#888780</color>
+    <color name="rt_block_ghost_big">#B4B2A9</color>
+
+    <color name="rt_reader_stroke">#888780</color>
+    <color name="rt_nav_line">#D3D1C7</color>
+</resources>
