@@ -84,6 +84,10 @@ class BookCoverView @JvmOverloads constructor(
         titlePaint.color = col(if (hasBook) R.color.rt_ink else R.color.rt_ink2)
         if (!hasBook) titlePaint.typeface = Fonts.regular(context) else titlePaint.typeface = Fonts.semibold(context)
         val width = (150f - 20f - 12f).toInt()
+        // Длинное слово не рвём посередине: уменьшаем кегль, пока самое длинное слово не влезет
+        titlePaint.textSize = 19f
+        val longest = title.split(Regex("\\s+")).maxByOrNull { titlePaint.measureText(it) } ?: ""
+        while (titlePaint.textSize > 13f && titlePaint.measureText(longest) > width) titlePaint.textSize -= 1f
         return StaticLayout.Builder.obtain(title, 0, title.length, titlePaint, width)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setLineSpacing(0f, 1.15f)

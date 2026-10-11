@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.readingtracker.ui.FitScaleLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/rt_bg"
-    android:fillViewport="true"
-    android:overScrollMode="never">
+    android:background="@color/rt_bg">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -28,7 +26,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:textColor="@color/rt_ink2"
-                android:textSize="14sp" />
+                android:textSize="14dp" />
 
             <TextView
                 android:id="@+id/tvDayNumber"
@@ -40,7 +38,7 @@
                 android:paddingEnd="8dp"
                 android:paddingBottom="3dp"
                 android:textColor="@color/rt_ink"
-                android:textSize="13sp" />
+                android:textSize="13dp" />
         </LinearLayout>
 
         <!-- минут чтения по дням -->
@@ -120,7 +118,7 @@
                             android:layout_gravity="top|start"
                             android:includeFontPadding="false"
                             android:textColor="@color/rt_ink"
-                            android:textSize="34sp"
+                            android:textSize="34dp"
                             android:textStyle="bold" />
 
                         <com.readingtracker.ui.home.ShelfView
@@ -177,7 +175,7 @@
                     android:layout_height="wrap_content"
                     android:text="сегодня за книгой"
                     android:textColor="@color/rt_ring_sub"
-                    android:textSize="13sp" />
+                    android:textSize="13dp" />
 
                 <Space
                     android:layout_width="0dp"
@@ -201,7 +199,7 @@
                     android:gravity="center"
                     android:maxLines="2"
                     android:textColor="@color/rt_ring_sub"
-                    android:textSize="12sp" />
+                    android:textSize="12dp" />
             </LinearLayout>
 
             <LinearLayout
@@ -234,7 +232,7 @@
                         android:layout_weight="1"
                         android:includeFontPadding="false"
                         android:textColor="@color/rt_ink"
-                        android:textSize="40sp"
+                        android:textSize="40dp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -242,7 +240,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textColor="@color/rt_ink2"
-                        android:textSize="13sp"
+                        android:textSize="13dp"
                         android:visibility="gone" />
                 </LinearLayout>
 
@@ -264,8 +262,8 @@
                     android:lineSpacingMultiplier="1.1"
                     android:maxLines="2"
                     android:textColor="@color/rt_ink2"
-                    android:textSize="13sp" />
+                    android:textSize="13dp" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-</ScrollView>
+</com.readingtracker.ui.FitScaleLayout>

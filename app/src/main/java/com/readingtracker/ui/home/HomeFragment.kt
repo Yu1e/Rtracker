@@ -175,7 +175,7 @@ class HomeFragment : Fragment() {
                 text = name
                 gravity = Gravity.CENTER
                 setTextColor(col(R.color.rt_ink))
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13f)
                 typeface = Fonts.regular(ctx)
                 maxLines = 2
                 setBackgroundResource(R.drawable.rt_reader_btn)

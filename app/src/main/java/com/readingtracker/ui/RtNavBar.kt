@@ -69,7 +69,9 @@ class NavItemView(context: Context) : AppCompatTextView(context) {
 
     init {
         gravity = Gravity.CENTER
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+        // Размер в dp: меню всегда в одну строку, даже при крупном системном шрифте
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14f)
+        maxLines = 1
         isClickable = true
         isFocusable = true
         includeFontPadding = false
