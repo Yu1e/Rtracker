@@ -1,4 +1,4 @@
-name: Build Debug APK
+name: Build
 
 on:
   push:
@@ -45,7 +45,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ReadingTracker-debug
+          name: Rtracker-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
@@ -53,9 +53,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk ReadingTracker.apk
+          cp app/build/outputs/apk/debug/app-debug.apk Rtracker.apk
           gh release delete latest --cleanup-tag -y || true
-          gh release create latest ReadingTracker.apk \
-            --title "Трекер чтения (последняя сборка)" \
-            --notes "Скачайте ReadingTracker.apk и установите на телефон." \
+          gh release create latest Rtracker.apk \
+            --title "R, последняя сборка" \
+            --notes "Последняя сборка." \
             --target "${{ github.sha }}"

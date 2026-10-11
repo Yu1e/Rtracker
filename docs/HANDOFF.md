@@ -7,7 +7,7 @@
 Android-приложение, которое записывает моё чтение в читалках ЛитРес, Яндекс Книги, AlReader и «Свет» (НЭБ, пакет `ru.rsl.svetApp`): какие книги, сколько времени, когда, стрики, статистика.
 
 - Репозиторий: https://github.com/Yu1e/Rtracker (ветка `main`).
-- Готовый .apk после каждого пуша собирает GitHub Actions и кладёт в Releases: https://github.com/Yu1e/Rtracker/releases/download/latest/ReadingTracker.apk
+- Готовый .apk после каждого пуша собирает GitHub Actions и кладёт в Releases: https://github.com/Yu1e/Rtracker/releases/download/latest/Rtracker.apk
 - Логи сборки из облачной среды Claude недоступны, поэтому ошибки компиляции выводятся в аннотации (шаг «Show errors as annotations»). Читать их так: `gh api repos/Yu1e/Rtracker/check-runs/<job_id>/annotations`.
 - Отладочная подпись постоянная (`app/debug.keystore`), обновления ставятся поверх старой версии.
 
