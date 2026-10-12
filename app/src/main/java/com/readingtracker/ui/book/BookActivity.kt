@@ -77,6 +77,22 @@ class BookActivity : AppCompatActivity() {
         b.spSource.setSelection(sources.indexOfFirst { it.second == Book.PKG_PAPER }.coerceAtLeast(0))
         updateRatingLabel(0)
         updateDates()
+        b.manualTimeBlock.visibility = View.VISIBLE
+    }
+
+    private fun showManual(minutes: Long) {
+        b.manualTimeBlock.visibility = View.VISIBLE
+        if (minutes > 0) {
+            b.etManualHours.setText((minutes / 60).toString())
+            b.etManualMinutes.setText((minutes % 60).toString())
+        }
+    }
+
+    /** Часы и минуты из полей; пустые поля — ноль, минуты больше 59 тоже принимаются. */
+    private fun manualFromFields(): Long {
+        val h = b.etManualHours.text?.toString()?.trim()?.toLongOrNull() ?: 0L
+        val m = b.etManualMinutes.text?.toString()?.trim()?.toLongOrNull() ?: 0L
+        return (h * 60 + m).coerceAtLeast(0)
     }
 
     private fun loadBook(id: Long) {
@@ -120,10 +136,13 @@ class BookActivity : AppCompatActivity() {
 
     private suspend fun showBookStats(bk: Book) {
         val sessions = db.sessionDao().getSessionsForBook(bk.id)
+        // Книга внесена руками (нет записанных подходов) или время уже добавлялось вручную
+        if (sessions.isEmpty() || bk.manualMinutes > 0) showManual(bk.manualMinutes)
         val dayFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         val readingDays = sessions.map { dayFmt.format(Date(it.startTime)) }.toSet().size
         val text = buildString {
-            appendLine("Время за чтением: ${formatMinutes(bk.totalMinutes)}")
+            appendLine("Время за чтением: ${formatMinutes(bk.totalMinutes)}" +
+                if (bk.manualMinutes > 0 && sessions.isNotEmpty()) " (из них вручную ${formatMinutes(bk.manualMinutes)})" else "")
             appendLine("Дней на книгу: ${BookActions.daysOnBook(bk)}" +
                 if (bk.endDate == null) " (и продолжается)" else "")
             appendLine("Дней с чтением: $readingDays")
@@ -196,7 +215,16 @@ class BookActivity : AppCompatActivity() {
             endDate = endDate,
             rating = rating,
             notes = notes
-        )
+        ).let { bk ->
+            if (b.manualTimeBlock.visibility != View.VISIBLE) bk
+            else {
+                val manual = manualFromFields()
+                bk.copy(
+                    manualMinutes = manual,
+                    totalMinutes = (bk.totalMinutes - bk.manualMinutes + manual).coerceAtLeast(0)
+                )
+            }
+        }
         var updated = BookActions.applyStatus(base, status)
         // Явно выбранная дата окончания сохраняется
         if (endDate != null && status != Book.STATUS_READING) updated = updated.copy(endDate = endDate)

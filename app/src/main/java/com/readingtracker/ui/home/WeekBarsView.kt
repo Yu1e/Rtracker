@@ -59,7 +59,8 @@ class WeekBarsView @JvmOverloads constructor(
         val gap = 5f
         val colW = (wDp - gap * 6) / 7f
         val max = max(values.maxOrNull() ?: 0, 1)
-        val best = if ((values.maxOrNull() ?: 0) > 0) values.indexOfFirst { it == values.maxOrNull() } else -1
+        // Корона — лучшему дню недели, когда есть с чем сравнить: хотя бы два дня с чтением
+        val best = if (values.count { it > 0 } >= 2) values.indexOfFirst { it == values.maxOrNull() } else -1
         val labelH = 19f
         val barBottom = hDp - labelH - 8f - 2f
 

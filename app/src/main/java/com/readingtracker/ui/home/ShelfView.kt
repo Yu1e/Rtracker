@@ -41,7 +41,7 @@ class ShelfView @JvmOverloads constructor(
     /** ids готовых книг по порядку дочитывания (первая встанет у стенки); ghosts — сколько читается. */
     fun set(finishedIds: List<Long>, ghosts: Int) {
         this.bookIds = finishedIds
-        this.ghosts = ghosts.coerceIn(0, 3)
+        this.ghosts = ghosts.coerceIn(0, 4)
         contentDescription = "книг за месяц: ${finishedIds.size}" + if (ghosts > 0) ", читается: $ghosts" else ""
         invalidate()
     }
@@ -54,10 +54,11 @@ class ShelfView @JvmOverloads constructor(
         return if (ghosts >= 2) Mode.values()[r.nextInt(3)] else if (r.nextBoolean()) Mode.LEAN else Mode.LIE
     }
 
+    // Домино — не больше трёх: четвёртый лёг бы почти плашмя, он ложится в стопку
     private fun leaning(): Int = when (mode()) {
-        Mode.LEAN -> ghosts
+        Mode.LEAN -> minOf(ghosts, 3)
         Mode.LIE -> 0
-        Mode.MIX -> 1 + Random(seed + 1).nextInt(ghosts - 1)
+        Mode.MIX -> minOf(1 + Random(seed + 1).nextInt(ghosts - 1), 3)
     }
 
     /** Сколько места по ширине займут призраки. */

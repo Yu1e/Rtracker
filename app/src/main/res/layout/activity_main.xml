@@ -6,13 +6,11 @@
     android:layout_height="match_parent"
     android:background="@color/rt_bg">
 
-    <androidx.fragment.app.FragmentContainerView
-        android:id="@+id/nav_host_fragment"
-        android:name="androidx.navigation.fragment.NavHostFragment"
+    <!-- Экраны каруселью: листаются пальцем влево-вправо по кругу и переключаются меню -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/pager"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:defaultNavHost="true"
-        app:navGraph="@navigation/nav_graph"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/bottom_nav"
         app:layout_constraintStart_toStartOf="parent"

@@ -2,6 +2,7 @@ package com.readingtracker.ui
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Path
 import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
@@ -11,9 +12,12 @@ import android.widget.LinearLayout
 import androidx.appcompat.widget.AppCompatTextView
 import com.readingtracker.R
 import com.readingtracker.ui.home.Ribbons
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
- * Нижнее меню словами: главная, книги, статистика, настройки.
+ * Нижнее меню: главная, книги, статистика словами, настройки — шестерёнкой.
  * Выбранный пункт полужирный; под пальцем пункт вспыхивает цветами ляссе текущей книги.
  */
 class RtNavBar @JvmOverloads constructor(
@@ -32,14 +36,16 @@ class RtNavBar @JvmOverloads constructor(
         setBackgroundColor(RtColors.c(context, R.color.rt_bg))
     }
 
-    fun setItems(list: List<Pair<Int, String>>) {
+    /** iconIds — пункты, которые рисуются значком (шестерёнка), подпись уходит в описание. */
+    fun setItems(list: List<Pair<Int, String>>, iconIds: Set<Int> = emptySet()) {
         removeAllViews(); items.clear()
         for ((id, label) in list) {
+            val icon = id in iconIds
             val v = NavItemView(context).apply {
-                text = label
+                if (icon) { gear = true; text = ""; contentDescription = label } else text = label
                 setOnClickListener { onSelect?.invoke(id) }
             }
-            addView(v, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
+            addView(v, LayoutParams(0, LayoutParams.MATCH_PARENT, if (icon) 0.6f else 1f))
             items += id to v
         }
     }
@@ -66,6 +72,32 @@ class NavItemView(context: Context) : AppCompatTextView(context) {
 
     var selectedItem = false
         set(value) { field = value; refresh() }
+
+    /** Пункт-значок: шестерёнка цвета текста. */
+    var gear = false
+        set(value) { field = value; invalidate() }
+
+    private val gearPath: Path by lazy {
+        val p = Path()
+        val teeth = 8
+        val rOut = 9.6f; val rIn = 7.2f
+        for (i in 0 until teeth) {
+            val a = (2 * PI * i / teeth).toFloat()
+            val pts = listOf(rIn to a - 0.36f, rOut to a - 0.2f, rOut to a + 0.2f, rIn to a + 0.36f)
+            for ((k, pr) in pts.withIndex()) {
+                val x = pr.first * cos(pr.second); val y = pr.first * sin(pr.second)
+                if (i == 0 && k == 0) p.moveTo(x, y) else p.lineTo(x, y)
+            }
+            // дуга до следующего зуба
+            val next = (2 * PI * (i + 1) / teeth).toFloat() - 0.36f
+            var t = a + 0.36f
+            while (t < next) { p.lineTo(rIn * cos(t), rIn * sin(t)); t += 0.08f }
+        }
+        p.close()
+        p.addCircle(0f, 0f, 3.4f, Path.Direction.CCW)
+        p.fillType = Path.FillType.EVEN_ODD
+        p
+    }
 
     init {
         gravity = Gravity.CENTER
@@ -112,7 +144,8 @@ class NavItemView(context: Context) : AppCompatTextView(context) {
     override fun onDraw(canvas: Canvas) {
         val v = if (glow) variant else null
         val pal = Ribbons.current
-        val tw = paint.apply { textSize = this@NavItemView.textSize; typeface = this@NavItemView.typeface }.measureText(text.toString())
+        val tw = if (gear) 20f * d
+            else paint.apply { textSize = this@NavItemView.textSize; typeface = this@NavItemView.typeface }.measureText(text.toString())
         val cx = width / 2f
         val cy = height / 2f
         if (v == PressVariant.B) {
@@ -121,6 +154,13 @@ class NavItemView(context: Context) : AppCompatTextView(context) {
             canvas.drawRoundRect(r, 10 * d, 10 * d, paint)
         }
         super.onDraw(canvas)
+        if (gear) {
+            canvas.save()
+            canvas.translate(cx, cy); canvas.scale(d, d)
+            paint.style = Paint.Style.FILL; paint.color = currentTextColor
+            canvas.drawPath(gearPath, paint)
+            canvas.restore()
+        }
         canvas.save(); canvas.scale(d, d)
         val cxd = cx / d; val cyd = cy / d; val twd = tw / d
         when (v) {

@@ -22,7 +22,10 @@ data class HomeData(
     val bookMinutes: Long,
     val bricks: List<BookCoverView.Brick>,
     val finishedThisMonth: List<Book>,
+    /** Призраков на полке: сколько книг читается (не больше четырёх). */
     val ghosts: Int,
+    /** Книги во временном статусе — читаются или отложены: число после плюса над полкой. */
+    val pending: Int,
     val todayMinutes: Long,
     val streak: Int,
     val record: Int
@@ -49,9 +52,10 @@ data class HomeData(
             // Книги «сейчас читаю»: сверху та, что читалась последней
             val lastRead = HashMap<Long, Long>()
             for (s in sessions) lastRead[s.bookId] = maxOf(lastRead[s.bookId] ?: 0L, s.endTime ?: s.startTime)
-            val reading = books.filter { it.status == Book.STATUS_READING }
+            val readingAll = books.filter { it.status == Book.STATUS_READING }
                 .sortedByDescending { lastRead[it.id] ?: it.startDate }
-                .take(3)
+            // В стопке три самые свежие; та, что дольше всех не открывалась, остаётся только в «книгах»
+            val reading = readingAll.take(3)
             val book = reading.firstOrNull()
 
             var bookMinutes = 0L
@@ -81,7 +85,8 @@ data class HomeData(
                 bookMinutes = bookMinutes,
                 bricks = bricks,
                 finishedThisMonth = finished,
-                ghosts = reading.size,
+                ghosts = readingAll.size.coerceAtMost(4),
+                pending = books.count { it.status == Book.STATUS_READING || it.status == Book.STATUS_PAUSED },
                 todayMinutes = st.todayMinutes,
                 streak = st.currentStreak,
                 record = maxOf(st.bestStreak, st.currentStreak)

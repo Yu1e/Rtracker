@@ -114,8 +114,25 @@ object StatsCalc {
         val hourMin = LongArray(24) { Math.round(accHour[it]) }
         val weekdayMin = LongArray(7) { Math.round(accWeekday[it]) }
 
-        fun minutesBetween(from: LocalDate, toExclusive: LocalDate) =
-            dayMin.filterKeys { !it.isBefore(from) && it.isBefore(toExclusive) }.values.sum()
+        // Время, внесённое вручную, раскладывается поровну на дни книги (с начала до конца).
+        // Оно входит в суммы за неделю, месяц и год, но не в дни: теплокарту, стрик, «сегодня».
+        val periodAcc = HashMap<LocalDate, Double>()
+        for ((d0, m) in acc) periodAcc[d0] = m
+        for (b in books) {
+            if (b.manualMinutes <= 0) continue
+            val from = b.startDate.toDate()
+            var to = (b.endDate ?: b.startDate).toDate()
+            if (to.isBefore(from)) to = from
+            val days = (java.time.temporal.ChronoUnit.DAYS.between(from, to) + 1).coerceIn(1, 3660)
+            val per = b.manualMinutes.toDouble() / days
+            for (i in 0 until days) {
+                val dd = from.plusDays(i)
+                periodAcc[dd] = (periodAcc[dd] ?: 0.0) + per
+            }
+        }
+
+        fun minutesBetween(from: LocalDate, toExclusive: LocalDate): Long =
+            Math.round(periodAcc.filterKeys { !it.isBefore(from) && it.isBefore(toExclusive) }.values.sum())
 
         val monthStart = today.withDayOfMonth(1)
         val nextMonth = monthStart.plusMonths(1)

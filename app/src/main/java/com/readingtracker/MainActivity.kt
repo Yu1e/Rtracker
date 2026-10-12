@@ -9,9 +9,14 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavOptions
-import androidx.navigation.fragment.NavHostFragment
+import androidx.activity.OnBackPressedCallback
+import androidx.fragment.app.Fragment
+import androidx.viewpager2.adapter.FragmentStateAdapter
+import androidx.viewpager2.widget.ViewPager2
+import com.readingtracker.ui.books.BooksFragment
+import com.readingtracker.ui.home.HomeFragment
+import com.readingtracker.ui.settings.SettingsFragment
+import com.readingtracker.ui.stats.StatsFragment
 import com.readingtracker.databinding.ActivityMainBinding
 import androidx.lifecycle.lifecycleScope
 import com.readingtracker.backup.BackupManager
@@ -22,6 +27,12 @@ import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        private const val TABS = 4
+        private const val LOOP = TABS * 50_000
+        private const val START = TABS * 25_000
+    }
+
     private lateinit var binding: ActivityMainBinding
     private val statusPrompt = StatusPrompt(this)
 
@@ -31,27 +42,49 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
-        val nav = navHost.navController
-        binding.bottomNav.setItems(listOf(
-            R.id.homeFragment to "главная",
-            R.id.booksFragment to "книги",
-            R.id.statsFragment to "статистика",
-            R.id.settingsFragment to "настройки"
-        ))
-        binding.bottomNav.onSelect = { id ->
-            if (nav.currentDestination?.id != id) {
-                val options = NavOptions.Builder()
-                    .setLaunchSingleTop(true)
-                    .setRestoreState(true)
-                    .setPopUpTo(nav.graph.findStartDestination().id, false, true)
-                    .build()
-                nav.navigate(id, null, options)
+        // Карусель: позиций много, экран = позиция по модулю 4, листается по кругу в обе стороны
+        val pager = binding.pager
+        pager.adapter = object : FragmentStateAdapter(this) {
+            override fun getItemCount() = LOOP
+            override fun createFragment(position: Int): Fragment = when (position % TABS) {
+                0 -> HomeFragment()
+                1 -> BooksFragment()
+                2 -> StatsFragment()
+                else -> SettingsFragment()
             }
         }
-        nav.addOnDestinationChangedListener { _, dest, _ -> binding.bottomNav.select(dest.id) }
+        if (savedInstanceState == null) pager.setCurrentItem(START, false)
+
+        binding.bottomNav.setItems(listOf(
+            0 to "главная",
+            1 to "книги",
+            2 to "статистика",
+            3 to "настройки"
+        ), iconIds = setOf(3))
+        binding.bottomNav.onSelect = { tab -> goTo(tab) }
+        pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) { binding.bottomNav.select(position % TABS) }
+        })
+        binding.bottomNav.select(pager.currentItem % TABS)
+
+        // «Назад» с любого экрана возвращает на главную, с главной — выход
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (pager.currentItem % TABS != 0) goTo(0)
+                else moveTaskToBack(true)
+            }
+        })
 
         checkPermissions()
+    }
+
+    /** Переход к экрану кратчайшим путём по кругу, со сдвигом. */
+    private fun goTo(tab: Int) {
+        val pager = binding.pager
+        val cur = pager.currentItem
+        var delta = ((tab - cur % TABS) % TABS + TABS) % TABS
+        if (delta > TABS / 2) delta -= TABS
+        if (delta != 0) pager.setCurrentItem(cur + delta, true)
     }
 
     override fun onResume() {

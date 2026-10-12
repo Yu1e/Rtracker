@@ -106,9 +106,9 @@ class HomeFragment : Fragment() {
         // Полка
         b.tvShelfTitle.text = "книг за ${MONTHS_NOM[d.today.monthValue - 1]}"
         val count = SpannableStringBuilder(d.finishedThisMonth.size.toString())
-        if (d.ghosts > 0) {
+        if (d.pending > 0) {
             val start = count.length
-            count.append("+${d.ghosts}")
+            count.append("+${d.pending}")
             count.setSpan(RelativeSizeSpan(0.44f), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             count.setSpan(SuperscriptSpan(), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             count.setSpan(ForegroundColorSpan(col(R.color.rt_ink3)), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)

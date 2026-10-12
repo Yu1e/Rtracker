@@ -24,7 +24,9 @@ data class Book(
     /** Начата новая книга после этой — уточнить статус в трекере. */
     val needsStatusCheck: Boolean = false,
     /** Когда последний раз показано уведомление о статусе. */
-    val lastNotifiedAt: Long? = null
+    val lastNotifiedAt: Long? = null,
+    /** Время, добавленное вручную (книга внесена руками); уже входит в totalMinutes. */
+    val manualMinutes: Long = 0
 ) {
     companion object {
         const val STATUS_READING = "reading"
