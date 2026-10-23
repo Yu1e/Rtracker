@@ -20,7 +20,9 @@ object RtColors {
         val attr = synchronized(attrOf) {
             attrOf.getOrPut(id) {
                 val name = try { context.resources.getResourceEntryName(id) } catch (_: Exception) { "" }
-                if (name.startsWith("rt_")) context.resources.getIdentifier(name, "attr", context.packageName) else 0
+                // Пакет ресурсов берём у самого цвета: у отладочной сборки имя приложения другое
+                if (name.startsWith("rt_")) context.resources.getIdentifier(name, "attr",
+                    context.resources.getResourcePackageName(id)) else 0
             }
         }
         if (attr != 0) {

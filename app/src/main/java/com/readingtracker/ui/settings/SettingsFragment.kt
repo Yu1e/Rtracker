@@ -205,7 +205,11 @@ class SettingsFragment : Fragment() {
         chips(b.styleChips, listOf("glass" to "стекло", "mono" to "ч/б", "eink" to "электронные чернила"), Prefs.style(ctx)) {
             Prefs.setStyle(ctx, it)
             RtTheme.applyNight(ctx)
-            requireActivity().recreate()
+            // Запуск заново, без сохранённых экранов: у чернил свой главный экран
+            val act = requireActivity()
+            act.startActivity(Intent(act, com.readingtracker.MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+            act.overridePendingTransition(0, 0)
         }
         val eink = RtTheme.isEink(ctx)
         b.tvNightLabel.visibility = if (eink) View.GONE else View.VISIBLE
