@@ -13,7 +13,10 @@ object Constants {
         "ru.yandex.books" to "Яндекс Книги",
         "com.neverland.alreader" to "AlReader",
         "com.neverland.alreaderpro" to "AlReader",
-        "ru.rsl.svetApp" to "Свет"
+        "ru.rsl.svetApp" to "Свет",
+        // Onyx Boox: встроенная читалка
+        "com.onyx.kreader" to "NeoReader",
+        "com.onyx.neoreader" to "NeoReader"
     )
 
     // Ключевые слова в названии приложения (в нижнем регистре)
@@ -22,7 +25,8 @@ object Constants {
         "litres" to "ЛитРес",
         "яндекс книги" to "Яндекс Книги",
         "яндекс.книги" to "Яндекс Книги",
-        "alreader" to "AlReader"
+        "alreader" to "AlReader",
+        "neoreader" to "NeoReader"
     )
 
     // Точное совпадение названия (слишком общие слова, чтобы искать вхождение)

@@ -14,7 +14,10 @@ import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.readingtracker.ui.books.BooksFragment
+import com.readingtracker.ui.home.HomeEinkFragment
 import com.readingtracker.ui.home.HomeFragment
+import com.readingtracker.ui.RtTheme
+import android.view.View
 import com.readingtracker.ui.settings.SettingsFragment
 import com.readingtracker.ui.stats.StatsFragment
 import com.readingtracker.databinding.ActivityMainBinding
@@ -37,23 +40,29 @@ class MainActivity : AppCompatActivity() {
     private val statusPrompt = StatusPrompt(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        RtTheme.apply(this)
         super.onCreate(savedInstanceState)
         com.readingtracker.ui.home.Ribbons.restore(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        val eink = RtTheme.isEink(this)
+        if (RtTheme.isGlass(this)) binding.backdrop.visibility = View.VISIBLE
 
         // Карусель: позиций много, экран = позиция по модулю 4, листается по кругу в обе стороны
         val pager = binding.pager
         pager.adapter = object : FragmentStateAdapter(this) {
             override fun getItemCount() = LOOP
             override fun createFragment(position: Int): Fragment = when (position % TABS) {
-                0 -> HomeFragment()
+                0 -> if (eink) HomeEinkFragment() else HomeFragment()
                 1 -> BooksFragment()
                 2 -> StatsFragment()
                 else -> SettingsFragment()
             }
         }
         if (savedInstanceState == null) pager.setCurrentItem(START, false)
+        // На чернилах экраны не листаются пальцем: перелистывание с движением оставляет следы
+        if (eink) pager.isUserInputEnabled = false
 
         binding.bottomNav.setItems(listOf(
             0 to "главная",
@@ -64,6 +73,9 @@ class MainActivity : AppCompatActivity() {
         binding.bottomNav.onSelect = { tab -> goTo(tab) }
         pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) { binding.bottomNav.select(position % TABS) }
+            override fun onPageScrolled(position: Int, offset: Float, px: Int) {
+                binding.backdrop.scroll = (position - START) + offset
+            }
         })
         binding.bottomNav.select(pager.currentItem % TABS)
 
@@ -84,7 +96,7 @@ class MainActivity : AppCompatActivity() {
         val cur = pager.currentItem
         var delta = ((tab - cur % TABS) % TABS + TABS) % TABS
         if (delta > TABS / 2) delta -= TABS
-        if (delta != 0) pager.setCurrentItem(cur + delta, true)
+        if (delta != 0) pager.setCurrentItem(cur + delta, RtTheme.motion(this))
     }
 
     override fun onResume() {

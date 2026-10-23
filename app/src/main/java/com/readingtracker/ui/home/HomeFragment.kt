@@ -23,6 +23,10 @@ import com.readingtracker.data.AppDatabase
 import com.readingtracker.data.Book
 import com.readingtracker.databinding.FragmentHomeBinding
 import com.readingtracker.launcher.ReaderLauncher
+import com.readingtracker.rewards.Achievements
+import com.readingtracker.rewards.Celebrations
+import com.readingtracker.service.ManualTimer
+import com.readingtracker.ui.RtTheme
 import com.readingtracker.ui.Fonts
 import com.readingtracker.ui.RtColors
 import com.readingtracker.ui.book.BookActivity
@@ -63,15 +67,16 @@ class HomeFragment : Fragment() {
     private fun load() {
         val ctx = requireContext().applicationContext
         viewLifecycleOwner.lifecycleScope.launch {
-            val d = withContext(Dispatchers.IO) {
+            val (d, rewards) = withContext(Dispatchers.IO) {
                 val db = AppDatabase.getInstance(ctx)
                 val books = db.bookDao().getAllBooksSync()
                 val sessions = db.sessionDao().getAllSessions()
-                HomeData.compute(books, sessions)
+                HomeData.compute(books, sessions) to Achievements.pending(ctx, books, sessions)
             }
             if (_b == null) return@launch
             data = d
             render(d)
+            Celebrations.play(requireActivity(), rewards)
         }
     }
 
@@ -80,7 +85,10 @@ class HomeFragment : Fragment() {
     private fun render(d: HomeData) {
         val ctx = requireContext()
 
+        val statsOnly = Prefs.statsOnly(ctx)
+
         // Неделя
+        b.weekBars.crownOn = !statsOnly
         b.weekBars.set(d.week, d.todayIndex)
 
         // Книги стопкой
@@ -130,57 +138,120 @@ class HomeFragment : Fragment() {
                 ReaderLauncher.open(ctx, readPkg)
             }
         }
-        buildReaders(readers.map { it.key to it.value })
+        buildReaders(readers.map { it.key to it.value }, book)
 
         // Сегодня за книгой
         val goal = Prefs.goalMinutes(ctx)
-        b.ring.set(d.todayMinutes, goal)
+        val hourRing = Prefs.hourRing(ctx)
+        val m = d.todayMinutes
+        b.ring.set(m, goal, hourRing)
         b.tvRingCaption.text = when {
-            d.todayMinutes == 0L -> ZERO_PHRASES[Random.nextInt(ZERO_PHRASES.size)]
-            d.todayMinutes > goal -> "цель взята, второй круг"
-            d.todayMinutes == goal.toLong() -> "цель взята"
+            statsOnly -> if (m >= 60) "полных часов: ${m / 60}" else ""
+            m == 0L -> ZERO_PHRASES[Random.nextInt(ZERO_PHRASES.size)]
+            hourRing -> if (m >= 60) "полных часов: ${m / 60}" else "до часа: ${60 - m} мин"
+            m > goal -> "цель взята, второй круг"
+            m == goal.toLong() -> "цель взята"
             else -> "цель: $goal мин"
         }
 
         // Дни подряд
         b.tvStreak.text = d.streak.toString()
-        b.streakBlocks.set(d.streak, d.record)
-        if (d.streak == 0) {
-            b.tvRecordRight.visibility = if (d.record > 0) View.VISIBLE else View.GONE
-            b.tvRecordRight.text = "рекорд: ${d.record}"
-            b.tvStreakCaption.text = if (d.record > 0) "начать заново можно сегодня" else "начать можно сегодня"
-            b.tvStreakCaption.setTextColor(col(R.color.rt_ink))
-        } else {
+        if (statsOnly) {
+            // Без рекордов: только сами дни
+            b.streakBlocks.set(d.streak, d.streak)
             b.tvRecordRight.visibility = View.GONE
-            b.tvStreakCaption.setTextColor(col(R.color.rt_ink2))
-            b.tvStreakCaption.text = if (d.streak >= d.record) "новый рекорд" else "до рекорда: ${d.record - d.streak}"
+            b.tvStreakCaption.text = ""
+        } else {
+            b.streakBlocks.set(d.streak, d.record)
+            if (d.streak == 0) {
+                b.tvRecordRight.visibility = if (d.record > 0) View.VISIBLE else View.GONE
+                b.tvRecordRight.text = "рекорд: ${d.record}"
+                b.tvStreakCaption.text = if (d.record > 0) "начать заново можно сегодня" else "начать можно сегодня"
+                b.tvStreakCaption.setTextColor(col(R.color.rt_ink))
+            } else {
+                b.tvRecordRight.visibility = View.GONE
+                b.tvStreakCaption.setTextColor(col(R.color.rt_ink2))
+                b.tvStreakCaption.text = if (d.streak >= d.record) "новый рекорд" else "до рекорда: ${d.record - d.streak}"
+            }
         }
     }
 
-    private fun buildReaders(readers: List<Pair<String, String>>) {
+    /** Ряд под книгой: ручной таймер и кнопки читалок. */
+    private fun buildReaders(readers: List<Pair<String, String>>, book: Book?) {
         val ctx = requireContext()
         val dp = resources.displayMetrics.density
         b.readersRow.removeAllViews()
-        val visible = if (readers.isEmpty()) View.GONE else View.VISIBLE
-        b.readersRow.visibility = visible
-        b.tvReadersLabel.visibility = visible
-        readers.forEachIndexed { i, (pkg, name) ->
-            val tv = TextView(ctx).apply {
-                text = name
-                gravity = Gravity.CENTER
-                setTextColor(col(R.color.rt_ink))
-                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13f)
-                typeface = Fonts.regular(ctx)
-                maxLines = 2
-                setBackgroundResource(R.drawable.rt_reader_btn)
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { ReaderLauncher.open(ctx, pkg) }
-            }
+        b.readersRow.visibility = View.VISIBLE
+        b.tvReadersLabel.visibility = View.VISIBLE
+        b.tvReadersLabel.text = if (readers.isEmpty()) "таймер вручную" else "таймер и читалки"
+        val btnBg = RtTheme.resId(ctx, R.attr.rtReaderBtn)
+        fun cell(text: CharSequence, onClick: () -> Unit) = TextView(ctx).apply {
+            this.text = text
+            gravity = Gravity.CENTER
+            setTextColor(col(R.color.rt_ink))
+            setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13f)
+            typeface = Fonts.regular(ctx)
+            maxLines = 2
+            if (btnBg != 0) setBackgroundResource(btnBg)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { onClick() }
+        }
+        timerCell = cell(timerText(), { toggleTimer(book) })
+        val all = listOf(timerCell!!) + readers.map { (pkg, name) -> cell(name, { ReaderLauncher.open(ctx, pkg) }) }
+        all.forEachIndexed { i, tv ->
             val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
             if (i > 0) lp.marginStart = (6 * dp).toInt()
             b.readersRow.addView(tv, lp)
         }
+        if (ManualTimer.bookId != null) timerCell?.postDelayed(tick, 30_000)
+    }
+
+    private var timerCell: TextView? = null
+
+    /** «▶ таймер» или «■ стоп» и сколько идёт. */
+    private fun timerText(): CharSequence {
+        if (ManualTimer.bookId == null) return "▶ таймер"
+        val min = ((System.currentTimeMillis() - ManualTimer.since) / 60_000).coerceAtLeast(0)
+        return "■ стоп\n$min мин"
+    }
+
+    private val tick = object : Runnable {
+        override fun run() {
+            timerCell?.text = timerText()
+            if (ManualTimer.bookId != null) timerCell?.postDelayed(this, 30_000)
+        }
+    }
+
+    private val timerChanged: () -> Unit = {
+        if (_b != null) { timerCell?.removeCallbacks(tick); tick.run(); load() }
+    }
+
+    private fun toggleTimer(book: Book?) {
+        val ctx = requireContext()
+        when {
+            ManualTimer.bookId != null -> ManualTimer.stop(ctx)
+            book == null -> {
+                Toast.makeText(ctx, "Сначала добавьте книгу", Toast.LENGTH_SHORT).show()
+                BookActivity.create(ctx)
+            }
+            else -> {
+                ManualTimer.start(ctx, book.id)
+                Toast.makeText(ctx, ManualTimer.hint(), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        ManualTimer.addListener(timerChanged)
+        tick.run()
+    }
+
+    override fun onStop() {
+        ManualTimer.removeListener(timerChanged)
+        timerCell?.removeCallbacks(tick)
+        super.onStop()
     }
 
     override fun onDestroyView() {

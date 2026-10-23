@@ -76,7 +76,11 @@ object Ribbons {
         return out
     }
 
-    /** Палитра книги сверху стопки: из неё берутся цвета нажатий и акценты других экранов. */
+    /** Палитра, закреплённая за книгой (или та, что выпала бы ей по номеру). */
+    fun paletteOf(ctx: Context, bookId: Long): RibbonPalette =
+        palettes.getOrElse(prefs(ctx).getInt("p_$bookId", -1)) { palettes[hashIndex(bookId)] }
+
+    /** Палитра книги сверху стопки: в ч/б из неё берётся акцент других экранов. */
     @Volatile var current: RibbonPalette = fallback
 
     fun setCurrent(ctx: Context, pal: RibbonPalette) {
@@ -92,13 +96,6 @@ object Ribbons {
             else RtColors.mostReadable(bg, p.base, p.edge, p.stripe, RtColors.mix(p.base, RtColors.c(ctx, com.readingtracker.R.color.rt_ink), 0.4f))
     }
 
-    /** Ступени теплокарты: 0 — нейтральная клетка, 1–4 — всё насыщеннее к цвету акцента. */
-    fun heat(ctx: Context, level: Int): Int {
-        val zero = RtColors.c(ctx, com.readingtracker.R.color.heat_0)
-        if (level <= 0) return zero
-        val t = floatArrayOf(0.3f, 0.55f, 0.8f, 1f)[(level - 1).coerceIn(0, 3)]
-        return RtColors.mix(zero, accent(ctx), t)
-    }
 
     fun restore(ctx: Context) {
         current = palettes.getOrElse(prefs(ctx).getInt("current", 0)) { fallback }
@@ -169,7 +166,8 @@ class RibbonRoute(
 /** Рисует ленту. Координаты — в dp обложки; холст уже сдвинут и масштабирован. */
 class RibbonPainter(private val pal: RibbonPalette, private val pattern: RibbonPattern) {
 
-    private val hw = 3.5f
+    // Полуширина ленты; чуть толще прежних 3,5
+    private val hw = 4.2f
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeWidth = 0.6f; strokeJoin = Paint.Join.ROUND

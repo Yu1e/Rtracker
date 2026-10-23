@@ -39,6 +39,26 @@ object Prefs {
     fun goalMinutes(c: Context): Int = p(c).getInt("goal_minutes", 60)
     fun setGoalMinutes(c: Context, m: Int) { p(c).edit().putInt("goal_minutes", m).apply() }
 
-    fun iconVariant(c: Context): Int = p(c).getInt("icon_variant", 0)
-    fun setIconVariant(c: Context, v: Int) { p(c).edit().putInt("icon_variant", v).apply() }
+    /** Оформление: «mono» (ч/б), «glass» (стекло), «eink» (электронные чернила). */
+    fun style(c: Context): String = p(c).getString("style", "glass") ?: "glass"
+    fun setStyle(c: Context, v: String) { p(c).edit().putString("style", v).apply() }
+
+    /** Светлая или тёмная: «system», «light», «dark». */
+    fun night(c: Context): String = p(c).getString("night", "system") ?: "system"
+    fun setNight(c: Context, v: String) { p(c).edit().putString("night", v).apply() }
+
+    /** Кольцо «сегодня за книгой»: «goal» — до цели дня, «hour» — круг за каждый час. */
+    fun ringMode(c: Context): String = p(c).getString("ring_mode", "goal") ?: "goal"
+    fun setRingMode(c: Context, v: String) { p(c).edit().putString("ring_mode", v).apply() }
+
+    /** Только статистика: без целей и рекордов. */
+    fun statsOnly(c: Context): Boolean = p(c).getBoolean("stats_only", false)
+    fun setStatsOnly(c: Context, v: Boolean) { p(c).edit().putBoolean("stats_only", v).apply() }
+
+    /** Кольцо считает часы: выбрано «час» или включена «только статистика». */
+    fun hourRing(c: Context): Boolean = statsOnly(c) || ringMode(c) == "hour"
+
+    /** Праздничные эффекты за достижения. */
+    fun effects(c: Context): Boolean = p(c).getBoolean("effects", true)
+    fun setEffects(c: Context, v: Boolean) { p(c).edit().putBoolean("effects", v).apply() }
 }

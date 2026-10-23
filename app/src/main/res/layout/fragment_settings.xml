@@ -32,21 +32,87 @@
             android:layout_height="wrap_content"
             android:orientation="vertical" />
 
-        <!-- Цель дня -->
-        <TextView style="@style/SettingsSection" android:text="цель дня" />
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:layout_marginBottom="6dp"
-            android:text="Сколько минут чтения в день замыкают кольцо «сегодня за книгой» на главном экране." />
+        <!-- Оформление -->
+        <TextView style="@style/SettingsSection" android:text="оформление" />
         <com.google.android.material.chip.ChipGroup
             xmlns:app="http://schemas.android.com/apk/res-auto"
-            android:id="@+id/goalChips"
+            android:id="@+id/styleChips"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:singleSelection="true"
             app:selectionRequired="true" />
+        <TextView
+            android:id="@+id/tvNightLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:layout_marginTop="8dp"
+            android:text="светлая или тёмная" />
+        <com.google.android.material.chip.ChipGroup
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/nightChips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true" />
+
+        <!-- Цели и рекорды -->
+        <TextView style="@style/SettingsSection" android:text="цели и рекорды" />
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swStatsOnly"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:text="только статистика: без целей и рекордов" />
+
+        <LinearLayout
+            android:id="@+id/goalBlock"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:layout_marginTop="8dp"
+                android:text="кольцо «сегодня за книгой» замыкается" />
+            <com.google.android.material.chip.ChipGroup
+                xmlns:app="http://schemas.android.com/apk/res-auto"
+                android:id="@+id/ringChips"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:singleSelection="true"
+                app:selectionRequired="true" />
+            <TextView
+                android:id="@+id/tvGoalLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:layout_marginTop="8dp"
+                android:text="цель дня" />
+            <com.google.android.material.chip.ChipGroup
+                xmlns:app="http://schemas.android.com/apk/res-auto"
+                android:id="@+id/goalChips"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:singleSelection="true"
+                app:selectionRequired="true" />
+        </LinearLayout>
+
+        <!-- Праздничные эффекты -->
+        <TextView style="@style/SettingsSection" android:text="поощрения" />
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swEffects"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:text="праздничные эффекты за дочитанную книгу и круглые числа" />
+        <Button
+            android:id="@+id/btnTryEffect"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="показать эффект"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
 
         <!-- Резервная копия -->
         <TextView style="@style/SettingsSection" android:text="Резервная копия" />
@@ -114,14 +180,6 @@
             android:layout_height="wrap_content"
             android:text="Очистить журнал"
             style="@style/Widget.MaterialComponents.Button.TextButton" />
-
-        <!-- Иконка -->
-        <TextView style="@style/SettingsSection" android:text="Иконка приложения" />
-        <LinearLayout
-            android:id="@+id/iconRow"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal" />
 
         <!-- Проверка -->
         <TextView style="@style/SettingsSection" android:text="Проверка" />

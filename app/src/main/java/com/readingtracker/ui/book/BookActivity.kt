@@ -48,6 +48,7 @@ class BookActivity : AppCompatActivity() {
     private lateinit var sources: List<Pair<String, String>>
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        com.readingtracker.ui.RtTheme.apply(this)
         super.onCreate(savedInstanceState)
         b = ActivityBookBinding.inflate(layoutInflater)
         setContentView(b.root)

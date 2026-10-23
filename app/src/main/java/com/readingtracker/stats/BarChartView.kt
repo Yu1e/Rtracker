@@ -27,7 +27,7 @@ class BarChartView @JvmOverloads constructor(
     private val dp = resources.displayMetrics.density
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ContextCompat.getColor(context, R.color.chart_bar) }
     private val gridPaint = Paint().apply {
-        color = ContextCompat.getColor(context, R.color.chart_grid); strokeWidth = 1 * dp
+        color = com.readingtracker.ui.RtColors.c(context, R.color.rt_chart_grid); strokeWidth = 1 * dp
     }
     private val textSecondary = resolveColor(android.R.attr.textColorSecondary)
     private val textPrimary = resolveColor(android.R.attr.textColorPrimary)
@@ -88,7 +88,7 @@ class BarChartView @JvmOverloads constructor(
                 // Скруглён только верх, низ стоит на базовой линии
                 path.reset()
                 path.addRoundRect(rect, floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f), Path.Direction.CW)
-                barPaint.color = com.readingtracker.ui.home.Ribbons.accent(context)
+                barPaint.color = com.readingtracker.ui.RtTheme.accent(context)
                 barPaint.alpha = if (selected == -1 || selected == i) 255 else 140
                 canvas.drawPath(path, barPaint)
             }

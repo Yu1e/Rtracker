@@ -11,6 +11,7 @@ import com.readingtracker.diag.Diag
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
+        com.readingtracker.ui.RtTheme.applyNight(this)
         createNotificationChannel()
         DailyWorker.schedule(this)
         val previous = Thread.getDefaultUncaughtExceptionHandler()

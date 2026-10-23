@@ -2,14 +2,35 @@ package com.readingtracker.ui
 
 import android.content.Context
 import android.graphics.Color
+import android.util.TypedValue
 import androidx.core.content.ContextCompat
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 
-/** Цвета ч/б дизайна и немного арифметики контраста. */
+/** Цвета оформления и немного арифметики контраста. */
 object RtColors {
-    fun c(context: Context, id: Int): Int = ContextCompat.getColor(context, id)
+    private val attrOf = HashMap<Int, Int>()
+
+    /**
+     * Цвет текущего оформления. Для цветов rt_* берётся одноимённый атрибут темы
+     * (стекло и чернила подменяют цвета ч/б); если его нет — сам цвет.
+     */
+    fun c(context: Context, id: Int): Int {
+        val attr = synchronized(attrOf) {
+            attrOf.getOrPut(id) {
+                val name = try { context.resources.getResourceEntryName(id) } catch (_: Exception) { "" }
+                if (name.startsWith("rt_")) context.resources.getIdentifier(name, "attr", context.packageName) else 0
+            }
+        }
+        if (attr != 0) {
+            val tv = TypedValue()
+            if (context.theme.resolveAttribute(attr, tv, true)) {
+                return if (tv.resourceId != 0) ContextCompat.getColor(context, tv.resourceId) else tv.data
+            }
+        }
+        return ContextCompat.getColor(context, id)
+    }
 
     private fun channel(v: Int): Double {
         val s = v / 255.0

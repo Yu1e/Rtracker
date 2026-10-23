@@ -62,4 +62,9 @@
     <color name="rt_cover2">#34342F</color>
     <color name="rt_cover3">#4A4945</color>
     <color name="rt_cover4">#5C5B56</color>
+
+    <color name="rt_accent">#D6D4CC</color>
+    <color name="rt_screen_bg">#0F0F0E</color>
+    <color name="rt_chart_grid">#3A3A37</color>
+    <color name="rt_heat0">#2C2C2A</color>
 </resources>

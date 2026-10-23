@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Ч/б: цвета берутся из rt_colors (светлая) и values-night/rt_colors (тёмная) -->
+    <!-- Ч/б: цвета берутся из rt_colors (светлая) и values-night/rt_colors (тёмная).
+         Атрибуты rt_* — цвета текущего оформления, см. ui/RtTheme. -->
     <style name="Theme.ReadingTracker" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/rt_ink</item>
         <item name="colorPrimaryVariant">@color/rt_ink</item>
@@ -11,6 +12,240 @@
         <item name="android:statusBarColor">@color/rt_bg</item>
         <item name="android:navigationBarColor">@color/rt_bg</item>
         <item name="android:windowLightStatusBar">@bool/rt_light_bars</item>
+        <item name="rtTile16">@drawable/rt_tile_16</item>
+        <item name="rtTile18">@drawable/rt_tile_18</item>
+        <item name="rtRingTile">@drawable/rt_ring_tile</item>
+        <item name="rtReaderBtn">@drawable/rt_reader_btn</item>
+        <item name="rtNavHeight">52dp</item>
+        <item name="rt_bg">@color/rt_bg</item>
+        <item name="rt_ink">@color/rt_ink</item>
+        <item name="rt_ink2">@color/rt_ink2</item>
+        <item name="rt_ink3">@color/rt_ink3</item>
+        <item name="rt_tile">@color/rt_tile</item>
+        <item name="rt_tile_stroke">@color/rt_tile_stroke</item>
+        <item name="rt_strong">@color/rt_strong</item>
+        <item name="rt_on_strong">@color/rt_on_strong</item>
+        <item name="rt_on_strong2">@color/rt_on_strong2</item>
+        <item name="rt_ring_bg">@color/rt_ring_bg</item>
+        <item name="rt_ring_stroke">@color/rt_ring_stroke</item>
+        <item name="rt_ring_fg">@color/rt_ring_fg</item>
+        <item name="rt_ring_sub">@color/rt_ring_sub</item>
+        <item name="rt_ring_track">@color/rt_ring_track</item>
+        <item name="rt_ring_prog">@color/rt_ring_prog</item>
+        <item name="rt_ring_track2">@color/rt_ring_track2</item>
+        <item name="rt_ring_prog2">@color/rt_ring_prog2</item>
+        <item name="rt_bar0">@color/rt_bar0</item>
+        <item name="rt_bar1">@color/rt_bar1</item>
+        <item name="rt_bar2">@color/rt_bar2</item>
+        <item name="rt_bar3">@color/rt_bar3</item>
+        <item name="rt_bar4">@color/rt_bar4</item>
+        <item name="rt_bar_zero_text">@color/rt_bar_zero_text</item>
+        <item name="rt_cover">@color/rt_cover</item>
+        <item name="rt_cover_stroke">@color/rt_cover_stroke</item>
+        <item name="rt_cover_hinge">@color/rt_cover_hinge</item>
+        <item name="rt_board">@color/rt_board</item>
+        <item name="rt_pages">@color/rt_pages</item>
+        <item name="rt_page_line">@color/rt_page_line</item>
+        <item name="rt_spine">@color/rt_spine</item>
+        <item name="rt_band">@color/rt_band</item>
+        <item name="rt_band_stroke">@color/rt_band_stroke</item>
+        <item name="rt_band_rule">@color/rt_band_rule</item>
+        <item name="rt_band_text">@color/rt_band_text</item>
+        <item name="rt_band_fold">@color/rt_band_fold</item>
+        <item name="rt_band_shadow">@color/rt_band_shadow</item>
+        <item name="rt_brick">@color/rt_brick</item>
+        <item name="rt_brick_today">@color/rt_brick_today</item>
+        <item name="rt_brick_empty">@color/rt_brick_empty</item>
+        <item name="rt_book_d">@color/rt_book_d</item>
+        <item name="rt_book_m">@color/rt_book_m</item>
+        <item name="rt_book_l">@color/rt_book_l</item>
+        <item name="rt_book_cap">@color/rt_book_cap</item>
+        <item name="rt_ghost">@color/rt_ghost</item>
+        <item name="rt_ghost_stripe">@color/rt_ghost_stripe</item>
+        <item name="rt_shelf">@color/rt_shelf</item>
+        <item name="rt_block_ghost">@color/rt_block_ghost</item>
+        <item name="rt_block_ghost_big">@color/rt_block_ghost_big</item>
+        <item name="rt_reader_stroke">@color/rt_reader_stroke</item>
+        <item name="rt_nav_line">@color/rt_nav_line</item>
+        <item name="rt_cover2">@color/rt_cover2</item>
+        <item name="rt_cover3">@color/rt_cover3</item>
+        <item name="rt_cover4">@color/rt_cover4</item>
+        <item name="rt_accent">@color/rt_accent</item>
+        <item name="rt_screen_bg">@color/rt_screen_bg</item>
+        <item name="rt_chart_grid">@color/rt_chart_grid</item>
+        <item name="rt_heat0">@color/rt_heat0</item>
+    </style>
+
+    <!-- Стекло: цветное свечение за матовыми плитками, плавающее меню-капсула -->
+    <style name="Theme.ReadingTracker.Glass">
+        <item name="colorPrimary">@color/gl_accent</item>
+        <item name="colorPrimaryVariant">@color/gl_accent</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">@color/gl_accent</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSurface">@color/gl_surface</item>
+        <item name="android:textColorPrimary">@color/gl_ink</item>
+        <item name="android:textColorSecondary">@color/gl_ink2</item>
+        <item name="android:windowBackground">@color/gl_bg</item>
+        <item name="android:statusBarColor">@color/gl_bar_top</item>
+        <item name="android:navigationBarColor">@color/gl_bar_bottom</item>
+        <item name="materialCardViewStyle">@style/Widget.RT.GlassCard</item>
+        <item name="rtTile16">@drawable/glass_tile_16</item>
+        <item name="rtTile18">@drawable/glass_tile_18</item>
+        <item name="rtRingTile">@drawable/glass_tile_18</item>
+        <item name="rtReaderBtn">@drawable/glass_reader_btn</item>
+        <item name="rtNavHeight">68dp</item>
+        <item name="rt_bg">@color/gl_bg</item>
+        <item name="rt_ink">@color/gl_ink</item>
+        <item name="rt_ink2">@color/gl_ink2</item>
+        <item name="rt_ink3">@color/gl_ink3</item>
+        <item name="rt_tile">@color/gl_tile</item>
+        <item name="rt_tile_stroke">@color/gl_tile_stroke</item>
+        <item name="rt_strong">@color/gl_strong</item>
+        <item name="rt_on_strong">@color/gl_on_strong</item>
+        <item name="rt_on_strong2">@color/gl_on_strong2</item>
+        <item name="rt_ring_bg">@color/gl_ring_bg</item>
+        <item name="rt_ring_stroke">@color/gl_ring_stroke</item>
+        <item name="rt_ring_fg">@color/gl_ring_fg</item>
+        <item name="rt_ring_sub">@color/gl_ring_sub</item>
+        <item name="rt_ring_track">@color/gl_ring_track</item>
+        <item name="rt_ring_prog">@color/gl_ring_prog</item>
+        <item name="rt_ring_track2">@color/gl_ring_track2</item>
+        <item name="rt_ring_prog2">@color/gl_ring_prog2</item>
+        <item name="rt_bar0">@color/gl_bar0</item>
+        <item name="rt_bar1">@color/gl_bar1</item>
+        <item name="rt_bar2">@color/gl_bar2</item>
+        <item name="rt_bar3">@color/gl_bar3</item>
+        <item name="rt_bar4">@color/gl_bar4</item>
+        <item name="rt_bar_zero_text">@color/gl_bar_zero_text</item>
+        <item name="rt_cover">@color/gl_cover</item>
+        <item name="rt_cover_stroke">@color/gl_cover_stroke</item>
+        <item name="rt_cover_hinge">@color/gl_cover_hinge</item>
+        <item name="rt_board">@color/gl_board</item>
+        <item name="rt_pages">@color/gl_pages</item>
+        <item name="rt_page_line">@color/gl_page_line</item>
+        <item name="rt_spine">@color/gl_spine</item>
+        <item name="rt_band">@color/gl_band</item>
+        <item name="rt_band_stroke">@color/gl_band_stroke</item>
+        <item name="rt_band_rule">@color/gl_band_rule</item>
+        <item name="rt_band_text">@color/gl_band_text</item>
+        <item name="rt_band_fold">@color/gl_band_fold</item>
+        <item name="rt_band_shadow">@color/gl_band_shadow</item>
+        <item name="rt_brick">@color/gl_brick</item>
+        <item name="rt_brick_today">@color/gl_brick_today</item>
+        <item name="rt_brick_empty">@color/gl_brick_empty</item>
+        <item name="rt_book_d">@color/gl_book_d</item>
+        <item name="rt_book_m">@color/gl_book_m</item>
+        <item name="rt_book_l">@color/gl_book_l</item>
+        <item name="rt_book_cap">@color/gl_book_cap</item>
+        <item name="rt_ghost">@color/gl_ghost</item>
+        <item name="rt_ghost_stripe">@color/gl_ghost_stripe</item>
+        <item name="rt_shelf">@color/gl_shelf</item>
+        <item name="rt_block_ghost">@color/gl_block_ghost</item>
+        <item name="rt_block_ghost_big">@color/gl_block_ghost_big</item>
+        <item name="rt_reader_stroke">@color/gl_reader_stroke</item>
+        <item name="rt_nav_line">@color/gl_nav_line</item>
+        <item name="rt_cover2">@color/gl_cover2</item>
+        <item name="rt_cover3">@color/gl_cover3</item>
+        <item name="rt_cover4">@color/gl_cover4</item>
+        <item name="rt_accent">@color/gl_accent</item>
+        <item name="rt_screen_bg">@color/gl_screen_bg</item>
+        <item name="rt_chart_grid">@color/gl_chart_grid</item>
+        <item name="rt_heat0">@color/gl_heat0</item>
+    </style>
+
+    <!-- Электронные чернила: белое и чёрное, крупно, без движения -->
+    <style name="Theme.ReadingTracker.Eink">
+        <item name="colorPrimary">#000000</item>
+        <item name="colorPrimaryVariant">#000000</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#000000</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSurface">#FFFFFF</item>
+        <item name="android:textColorPrimary">#000000</item>
+        <item name="android:textColorSecondary">#222222</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:statusBarColor">#FFFFFF</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="materialCardViewStyle">@style/Widget.RT.EinkCard</item>
+        <item name="rtTile16">@drawable/ei_tile</item>
+        <item name="rtTile18">@drawable/ei_tile</item>
+        <item name="rtRingTile">@drawable/ei_tile</item>
+        <item name="rtReaderBtn">@drawable/ei_tile</item>
+        <item name="rtNavHeight">64dp</item>
+        <item name="rt_bg">@color/ei_bg</item>
+        <item name="rt_ink">@color/ei_ink</item>
+        <item name="rt_ink2">@color/ei_ink2</item>
+        <item name="rt_ink3">@color/ei_ink3</item>
+        <item name="rt_tile">@color/ei_tile</item>
+        <item name="rt_tile_stroke">@color/ei_tile_stroke</item>
+        <item name="rt_strong">@color/ei_strong</item>
+        <item name="rt_on_strong">@color/ei_on_strong</item>
+        <item name="rt_on_strong2">@color/ei_on_strong2</item>
+        <item name="rt_ring_bg">@color/ei_ring_bg</item>
+        <item name="rt_ring_stroke">@color/ei_ring_stroke</item>
+        <item name="rt_ring_fg">@color/ei_ring_fg</item>
+        <item name="rt_ring_sub">@color/ei_ring_sub</item>
+        <item name="rt_ring_track">@color/ei_ring_track</item>
+        <item name="rt_ring_prog">@color/ei_ring_prog</item>
+        <item name="rt_ring_track2">@color/ei_ring_track2</item>
+        <item name="rt_ring_prog2">@color/ei_ring_prog2</item>
+        <item name="rt_bar0">@color/ei_bar0</item>
+        <item name="rt_bar1">@color/ei_bar1</item>
+        <item name="rt_bar2">@color/ei_bar2</item>
+        <item name="rt_bar3">@color/ei_bar3</item>
+        <item name="rt_bar4">@color/ei_bar4</item>
+        <item name="rt_bar_zero_text">@color/ei_bar_zero_text</item>
+        <item name="rt_cover">@color/ei_cover</item>
+        <item name="rt_cover_stroke">@color/ei_cover_stroke</item>
+        <item name="rt_cover_hinge">@color/ei_cover_hinge</item>
+        <item name="rt_board">@color/ei_board</item>
+        <item name="rt_pages">@color/ei_pages</item>
+        <item name="rt_page_line">@color/ei_page_line</item>
+        <item name="rt_spine">@color/ei_spine</item>
+        <item name="rt_band">@color/ei_band</item>
+        <item name="rt_band_stroke">@color/ei_band_stroke</item>
+        <item name="rt_band_rule">@color/ei_band_rule</item>
+        <item name="rt_band_text">@color/ei_band_text</item>
+        <item name="rt_band_fold">@color/ei_band_fold</item>
+        <item name="rt_band_shadow">@color/ei_band_shadow</item>
+        <item name="rt_brick">@color/ei_brick</item>
+        <item name="rt_brick_today">@color/ei_brick_today</item>
+        <item name="rt_brick_empty">@color/ei_brick_empty</item>
+        <item name="rt_book_d">@color/ei_book_d</item>
+        <item name="rt_book_m">@color/ei_book_m</item>
+        <item name="rt_book_l">@color/ei_book_l</item>
+        <item name="rt_book_cap">@color/ei_book_cap</item>
+        <item name="rt_ghost">@color/ei_ghost</item>
+        <item name="rt_ghost_stripe">@color/ei_ghost_stripe</item>
+        <item name="rt_shelf">@color/ei_shelf</item>
+        <item name="rt_block_ghost">@color/ei_block_ghost</item>
+        <item name="rt_block_ghost_big">@color/ei_block_ghost_big</item>
+        <item name="rt_reader_stroke">@color/ei_reader_stroke</item>
+        <item name="rt_nav_line">@color/ei_nav_line</item>
+        <item name="rt_cover2">@color/ei_cover2</item>
+        <item name="rt_cover3">@color/ei_cover3</item>
+        <item name="rt_cover4">@color/ei_cover4</item>
+        <item name="rt_accent">@color/ei_accent</item>
+        <item name="rt_screen_bg">@color/ei_screen_bg</item>
+        <item name="rt_chart_grid">@color/ei_chart_grid</item>
+        <item name="rt_heat0">@color/ei_heat0</item>
+    </style>
+
+    <style name="Widget.RT.GlassCard" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/gl_card</item>
+        <item name="strokeColor">@color/gl_edge_mid</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardElevation">0dp</item>
+    </style>
+
+    <style name="Widget.RT.EinkCard" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">#FFFFFF</item>
+        <item name="strokeColor">#000000</item>
+        <item name="strokeWidth">1.5dp</item>
+        <item name="cardElevation">0dp</item>
     </style>
 
     <style name="Theme.ReadingTracker.Dialog" parent="Theme.MaterialComponents.DayNight.Dialog">
@@ -34,6 +269,6 @@
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textSize">13dp</item>
-        <item name="android:textColor">@color/rt_ink2</item>
+        <item name="android:textColor">?attr/rt_ink2</item>
     </style>
 </resources>

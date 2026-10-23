@@ -23,13 +23,16 @@ import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.readingtracker.Constants
-import com.readingtracker.IconSwitcher
 import com.readingtracker.Prefs
 import com.readingtracker.backup.BackupManager
 import com.readingtracker.data.AppDatabase
 import com.readingtracker.databinding.FragmentSettingsBinding
 import com.readingtracker.diag.Diag
 import com.readingtracker.diag.ScoutLog
+import com.readingtracker.rewards.Celebrations
+import com.readingtracker.ui.RtTheme
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import com.readingtracker.overlay.OverlayManager
 import com.readingtracker.service.ActivitySignal
 import com.readingtracker.service.ReaderAccessibilityService
@@ -91,7 +94,7 @@ class SettingsFragment : Fragment() {
         b.btnRestore.setOnClickListener {
             openBackup.launch(arrayOf("application/json", "application/octet-stream", "text/plain", "*/*"))
         }
-        buildGoalChips()
+        buildLookAndGoals()
 
         b.btnA11y.setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -105,7 +108,6 @@ class SettingsFragment : Fragment() {
             ScoutLog.clear(requireContext()); render()
         }
 
-        buildIconRow()
         buildShortcutButtons()
 
         b.btnTestBubble.setOnClickListener { testBubble() }
@@ -154,9 +156,6 @@ class SettingsFragment : Fragment() {
         b.tvScout.text = "Журнал разведки: ${ScoutLog.sizeKb(c)} КБ. Почитайте несколько дней во всех трёх читалках " +
             "(в том числе выбирая книги в библиотеке), затем отправьте журнал мне — по нему я научу трекер узнавать книгу сам."
 
-        // Иконка
-        highlightIcon()
-
         // Проверка
         b.tvReport.text = report(c)
     }
@@ -186,20 +185,58 @@ class SettingsFragment : Fragment() {
         appendLine("  ${Diag.get(c, Diag.ERROR) ?: "нет"}")
     }
 
-    // ── Цель дня ──────────────────────────────────────────────────────────────
+    // ── Оформление, цели, эффекты ─────────────────────────────────────────────
 
-    private fun buildGoalChips() {
+    private fun chips(group: ChipGroup, options: List<Pair<String, String>>, current: String, onPick: (String) -> Unit) {
         val ctx = requireContext()
-        val current = Prefs.goalMinutes(ctx)
-        b.goalChips.removeAllViews()
-        for (m in listOf(15, 30, 45, 60, 90, 120)) {
-            b.goalChips.addView(com.google.android.material.chip.Chip(ctx).apply {
-                text = "$m мин"
+        group.removeAllViews()
+        for ((key, label) in options) {
+            group.addView(Chip(ctx).apply {
+                text = label
                 isCheckable = true
-                isChecked = m == current
-                setOnClickListener { Prefs.setGoalMinutes(ctx, m) }
+                isChecked = key == current
+                setOnClickListener { if (key != current) onPick(key) }
             })
         }
+    }
+
+    private fun buildLookAndGoals() {
+        val ctx = requireContext()
+        chips(b.styleChips, listOf("glass" to "стекло", "mono" to "ч/б", "eink" to "электронные чернила"), Prefs.style(ctx)) {
+            Prefs.setStyle(ctx, it)
+            RtTheme.applyNight(ctx)
+            requireActivity().recreate()
+        }
+        val eink = RtTheme.isEink(ctx)
+        b.tvNightLabel.visibility = if (eink) View.GONE else View.VISIBLE
+        b.nightChips.visibility = if (eink) View.GONE else View.VISIBLE
+        chips(b.nightChips, listOf("system" to "как в системе", "light" to "светлая", "dark" to "тёмная"), Prefs.night(ctx)) {
+            Prefs.setNight(ctx, it)
+            RtTheme.applyNight(ctx)
+            buildLookAndGoals()
+        }
+
+        b.swStatsOnly.setOnCheckedChangeListener(null)
+        b.swStatsOnly.isChecked = Prefs.statsOnly(ctx)
+        b.swStatsOnly.setOnCheckedChangeListener { _, on -> Prefs.setStatsOnly(ctx, on); buildLookAndGoals() }
+        b.goalBlock.visibility = if (Prefs.statsOnly(ctx)) View.GONE else View.VISIBLE
+        chips(b.ringChips, listOf("goal" to "на цели дня", "hour" to "каждый час"), Prefs.ringMode(ctx)) {
+            Prefs.setRingMode(ctx, it)
+            buildLookAndGoals()
+        }
+        val hour = Prefs.ringMode(ctx) == "hour"
+        b.tvGoalLabel.visibility = if (hour) View.GONE else View.VISIBLE
+        b.goalChips.visibility = if (hour) View.GONE else View.VISIBLE
+        val goal = Prefs.goalMinutes(ctx)
+        chips(b.goalChips, listOf(15, 30, 45, 60, 90, 120).map { "$it" to "$it мин" }, "$goal") {
+            Prefs.setGoalMinutes(ctx, it.toInt())
+            buildLookAndGoals()
+        }
+
+        b.swEffects.setOnCheckedChangeListener(null)
+        b.swEffects.isChecked = Prefs.effects(ctx)
+        b.swEffects.setOnCheckedChangeListener { _, on -> Prefs.setEffects(ctx, on) }
+        b.btnTryEffect.setOnClickListener { Celebrations.demo(requireActivity()) }
     }
 
     // ── Ярлыки читалок ────────────────────────────────────────────────────────
@@ -224,55 +261,6 @@ class SettingsFragment : Fragment() {
                 }
             })
         }
-    }
-
-    // ── Иконки ────────────────────────────────────────────────────────────────
-
-    private val iconViews = mutableListOf<Pair<Int, LinearLayout>>()
-
-    private fun buildIconRow() {
-        val dp = resources.displayMetrics.density
-        b.iconRow.removeAllViews()
-        iconViews.clear()
-        for ((n, name, res) in IconSwitcher.variants) {
-            val cell = LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER_HORIZONTAL
-                setPadding((4 * dp).toInt(), (6 * dp).toInt(), (4 * dp).toInt(), (6 * dp).toInt())
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                setOnClickListener { chooseIcon(n) }
-            }
-            cell.addView(ImageView(requireContext()).apply {
-                setImageResource(res)
-                layoutParams = LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt())
-            })
-            cell.addView(TextView(requireContext()).apply {
-                text = name; textSize = 11f; gravity = Gravity.CENTER
-            })
-            b.iconRow.addView(cell)
-            iconViews += n to cell
-        }
-        highlightIcon()
-    }
-
-    private fun highlightIcon() {
-        val cur = IconSwitcher.current(requireContext())
-        for ((n, v) in iconViews) {
-            v.setBackgroundColor(if (n == cur) Color.argb(50, 57, 135, 229) else Color.TRANSPARENT)
-        }
-    }
-
-    private fun chooseIcon(n: Int) {
-        if (n == IconSwitcher.current(requireContext())) return
-        AlertDialog.Builder(requireContext())
-            .setTitle("Сменить иконку?")
-            .setMessage("Иконка обновится через несколько секунд. Ярлык на рабочем столе может исчезнуть — тогда перетащите его заново из списка приложений.")
-            .setPositiveButton("Сменить") { _, _ ->
-                IconSwitcher.apply(requireContext(), n)
-                highlightIcon()
-            }
-            .setNegativeButton("Отмена", null)
-            .show()
     }
 
     // ── Копия: восстановление ─────────────────────────────────────────────────

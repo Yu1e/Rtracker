@@ -11,13 +11,15 @@ import com.readingtracker.R
 import com.readingtracker.data.Book
 import com.readingtracker.data.BookActions
 import com.readingtracker.databinding.ItemBookBinding
+import com.readingtracker.service.ManualTimer
 import com.readingtracker.ui.book.formatMinutes
 import java.text.SimpleDateFormat
 import java.util.*
 
 class BooksAdapter(
     private val onOpen: (Book) -> Unit,
-    private val onStatusChange: (Book, String) -> Unit
+    private val onStatusChange: (Book, String) -> Unit,
+    private val onTimer: (Book) -> Unit
 ) : ListAdapter<Book, BooksAdapter.ViewHolder>(Diff()) {
 
     private val fmt = SimpleDateFormat("d MMM yyyy", Locale("ru"))
@@ -44,18 +46,26 @@ class BooksAdapter(
             val days = BookActions.daysOnBook(book)
             b.tvMeta.text = "${book.appName}  ·  $dates  ·  дней: $days"
 
-            val accent = com.readingtracker.ui.home.Ribbons.accent(b.root.context)
+            val accent = com.readingtracker.ui.RtTheme.accent(b.root.context)
             b.tvAsk.setTextColor(accent)
             b.tvTime.setTextColor(accent)
-            b.tvTime.text = if (book.totalMinutes > 0) formatMinutes(book.totalMinutes) else ""
-            b.tvTime.visibility = if (book.totalMinutes > 0) View.VISIBLE else View.GONE
+            val running = ManualTimer.isRunningFor(book.id)
+            b.tvTime.text = when {
+                running -> "● идёт таймер" + if (book.totalMinutes > 0) ", всего ${formatMinutes(book.totalMinutes)}" else ""
+                book.totalMinutes > 0 -> formatMinutes(book.totalMinutes)
+                else -> ""
+            }
+            b.tvTime.visibility = if (running || book.totalMinutes > 0) View.VISIBLE else View.GONE
 
             b.root.setOnClickListener { onOpen(book) }
             b.btnMenu.setOnClickListener { v ->
                 PopupMenu(v.context, v).apply {
                     menuInflater.inflate(R.menu.book_item_menu, menu)
+                    menu.findItem(R.id.action_timer).title =
+                        if (ManualTimer.isRunningFor(book.id)) "Остановить таймер" else "Запустить таймер"
                     setOnMenuItemClickListener { item ->
                         when (item.itemId) {
+                            R.id.action_timer     -> onTimer(book)
                             R.id.action_open      -> onOpen(book)
                             R.id.action_finished  -> onStatusChange(book, Book.STATUS_FINISHED)
                             R.id.action_abandoned -> onStatusChange(book, Book.STATUS_ABANDONED)

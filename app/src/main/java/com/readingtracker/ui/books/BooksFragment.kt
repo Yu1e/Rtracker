@@ -5,10 +5,10 @@ import android.view.*
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.chip.Chip
-import com.readingtracker.Constants
+import android.widget.Toast
+import com.readingtracker.data.Book
 import com.readingtracker.databinding.FragmentBooksBinding
-import com.readingtracker.launcher.ReaderLauncher
+import com.readingtracker.service.ManualTimer
 import com.readingtracker.ui.book.BookActivity
 
 class BooksFragment : Fragment() {
@@ -25,7 +25,8 @@ class BooksFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val adapter = BooksAdapter(
             onOpen = { book -> BookActivity.open(requireContext(), book.id) },
-            onStatusChange = { book, status -> vm.setStatus(book, status) }
+            onStatusChange = { book, status -> vm.setStatus(book, status) },
+            onTimer = { book -> toggleTimer(book) }
         )
         b.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         b.recyclerView.adapter = adapter
@@ -36,28 +37,25 @@ class BooksFragment : Fragment() {
         }
 
         b.fabAdd.setOnClickListener { BookActivity.create(requireContext()) }
+        ManualTimer.addListener(timerChanged)
     }
 
-    override fun onResume() {
-        super.onResume()
-        buildReaderChips()
-    }
+    private val timerChanged: () -> Unit = { _b?.recyclerView?.adapter?.notifyDataSetChanged() }
 
-    /** Кнопки читалок: открывают читалку через трекер. */
-    private fun buildReaderChips() {
+    /** Ручной таймер для любой книги: если трекер не поймал чтение или читается в другой читалке. */
+    private fun toggleTimer(book: Book) {
         val ctx = requireContext()
-        b.readerChips.removeAllViews()
-        val readers = Constants.detectTrackedApps(ctx).entries.distinctBy { it.value }
-        b.tvReadersLabel.visibility = if (readers.isEmpty()) View.GONE else View.VISIBLE
-        for ((pkg, name) in readers) {
-            b.readerChips.addView(Chip(ctx).apply {
-                text = name
-                setOnClickListener { ReaderLauncher.open(ctx, pkg) }
-            })
+        if (ManualTimer.isRunningFor(book.id)) {
+            ManualTimer.stop(ctx)
+            return
         }
+        if (book.status != Book.STATUS_READING) vm.setStatus(book, Book.STATUS_READING)
+        ManualTimer.start(ctx, book.id)
+        Toast.makeText(ctx, ManualTimer.hint(), Toast.LENGTH_LONG).show()
     }
 
     override fun onDestroyView() {
+        ManualTimer.removeListener(timerChanged)
         super.onDestroyView()
         _b = null
     }

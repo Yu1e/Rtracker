@@ -4,7 +4,18 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/rt_bg">
+    android:background="?attr/rt_screen_bg">
+
+    <!-- Фон оформления «стекло»; в других оформлениях скрыт -->
+    <com.readingtracker.ui.GlassBackdropView
+        android:id="@+id/backdrop"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Экраны каруселью: листаются пальцем влево-вправо по кругу и переключаются меню -->
     <androidx.viewpager2.widget.ViewPager2
@@ -19,7 +30,7 @@
     <com.readingtracker.ui.RtNavBar
         android:id="@+id/bottom_nav"
         android:layout_width="0dp"
-        android:layout_height="52dp"
+        android:layout_height="?attr/rtNavHeight"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />

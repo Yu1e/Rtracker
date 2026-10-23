@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Кнопка-капсула из стекла; под пальцем светлеет -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="21dp" />
+                    <solid android:color="@color/gl_edge_hi" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="21dp" />
+                    <gradient android:angle="315" android:startColor="@color/gl_edge_hi"
+                        android:centerColor="@color/gl_edge_mid" android:endColor="@color/gl_edge_lo" />
+                </shape>
+            </item>
+            <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="20dp" />
+                    <gradient android:angle="270" android:startColor="@color/gl_fill_top" android:endColor="@color/gl_fill_bottom" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>

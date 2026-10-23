@@ -38,6 +38,11 @@ class WeekBarsView @JvmOverloads constructor(
         lineTo(14 * s, 9 * s); lineTo(19 * s, 4 * s); lineTo(21 * s, 15 * s); close()
     }
 
+    private val glass = com.readingtracker.ui.RtTheme.isGlass(context)
+
+    /** Корона над лучшим днём; выключается настройкой «только статистика». */
+    var crownOn = true
+
     fun set(values: IntArray, todayIndex: Int) {
         this.values = values.copyOf(7)
         this.today = todayIndex
@@ -60,7 +65,7 @@ class WeekBarsView @JvmOverloads constructor(
         val colW = (wDp - gap * 6) / 7f
         val max = max(values.maxOrNull() ?: 0, 1)
         // Корона — лучшему дню недели, когда есть с чем сравнить: хотя бы два дня с чтением
-        val best = if (values.count { it > 0 } >= 2) values.indexOfFirst { it == values.maxOrNull() } else -1
+        val best = if (crownOn && values.count { it > 0 } >= 2) values.indexOfFirst { it == values.maxOrNull() } else -1
         val labelH = 19f
         val barBottom = hDp - labelH - 8f - 2f
 
@@ -80,7 +85,11 @@ class WeekBarsView @JvmOverloads constructor(
                 else -> col(R.color.rt_bar1)
             }
             fill.color = fillColor
-            canvas.drawRoundRect(bar, 6f, 6f, fill)
+            // Стекло: столбик светлее кверху, как капля
+            fill.shader = if (glass && v > 0) android.graphics.LinearGradient(0f, bar.top, 0f, bar.bottom,
+                RtColors.mix(fillColor, android.graphics.Color.WHITE, 0.35f), fillColor, android.graphics.Shader.TileMode.CLAMP) else null
+            canvas.drawRoundRect(bar, if (glass) 8f else 6f, if (glass) 8f else 6f, fill)
+            fill.shader = null
 
             if (i == today) {
                 stroke.color = col(R.color.rt_ink)

@@ -30,18 +30,35 @@ class ReaderAccessibilityService : AccessibilityService() {
             }
         }
 
+        @Volatile private var instance: ReaderAccessibilityService? = null
+
+        /** Ручной таймер: слушать все приложения (true) или только читалки (false). */
+        fun widen(all: Boolean) {
+            val s = instance ?: return
+            try {
+                s.serviceInfo = s.serviceInfo.apply {
+                    packageNames = if (all || s.tracked.isEmpty()) null else s.tracked.keys.toTypedArray()
+                }
+            } catch (_: Exception) {}
+        }
+
         /** Счётчики событий по типам — для экрана проверки. */
         val eventTypeCounts = ConcurrentHashMap<String, Int>()
     }
 
     private var tracked: Map<String, String> = emptyMap()
+    private val ACTIVE_TYPES = setOf(
+        AccessibilityEvent.TYPE_VIEW_SCROLLED, AccessibilityEvent.TYPE_VIEW_CLICKED,
+        AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED, AccessibilityEvent.TYPE_VIEW_SELECTED
+    )
     private val lastDumpAt = HashMap<String, Long>()
     private val lastDumpHash = HashMap<String, Int>()
 
     override fun onServiceConnected() {
+        instance = this
         tracked = Constants.detectTrackedApps(this)
         serviceInfo = serviceInfo.apply {
-            if (tracked.isNotEmpty()) packageNames = tracked.keys.toTypedArray()
+            if (tracked.isNotEmpty() && !ActivitySignal.manual) packageNames = tracked.keys.toTypedArray()
             eventTypes = AccessibilityEvent.TYPES_ALL_MASK
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
@@ -54,7 +71,12 @@ class ReaderAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
-        if (pkg !in tracked) return
+        if (pkg !in tracked) {
+            // Ручной таймер: перелистывания в любой другой читалке, кроме самого трекера и системной шторки
+            if (ActivitySignal.manual && pkg != packageName && pkg != "com.android.systemui" &&
+                event.eventType in ACTIVE_TYPES) ActivitySignal.touchAny()
+            return
+        }
         val type = AccessibilityEvent.eventTypeToString(event.eventType)
         val key = "${tracked[pkg]}: $type"
         eventTypeCounts[key] = (eventTypeCounts[key] ?: 0) + 1
@@ -122,6 +144,7 @@ class ReaderAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {}
 
     override fun onDestroy() {
+        instance = null
         ActivitySignal.accessibilityConnected = false
         super.onDestroy()
     }

@@ -73,7 +73,10 @@ class StatsFragment : Fragment() {
         if (s.currentStreak > 0 && !s.readToday) {
             note("Сегодня ещё не читалось — стрик продолжится, если открыть книгу до полуночи.")
         }
-        if (s.bestStreak > s.currentStreak && s.currentStreak > 0) {
+        val statsOnly = com.readingtracker.Prefs.statsOnly(requireContext())
+        if (statsOnly) {
+            // Без рекордов
+        } else if (s.bestStreak > s.currentStreak && s.currentStreak > 0) {
             note("До рекорда стрика (${s.bestStreak}) осталось ${s.bestStreak - s.currentStreak} ${daysWord(s.bestStreak - s.currentStreak)}.")
         } else if (s.currentStreak > 0 && s.currentStreak == s.bestStreak) {
             note("Это твой лучший стрик!")
@@ -145,12 +148,14 @@ class StatsFragment : Fragment() {
         kv("Дней на книгу, медиана (этот месяц)", s.medianDaysMonth?.let { fmtDays(it) } ?: "—")
         kv("Дней на книгу, среднее (этот месяц)", s.meanDaysMonth?.let { fmtDays(it) } ?: "—")
 
-        section("Рекорды")
-        s.fastestByDays?.let { (bk, d) -> bookLine("Быстрее всего", bk, "$d ${daysWord(d)}") }
-        s.slowestByDays?.let { (bk, d) -> bookLine("Дольше всего", bk, "$d ${daysWord(d)}") }
-        s.mostTime?.let { bookLine("Больше всего времени", it, formatHours(it.totalMinutes)) }
-        s.leastTime?.let { bookLine("Меньше всего времени", it, formatHours(it.totalMinutes)) }
-        if (s.fastestByDays == null) note("Появятся после первой дочитанной книги.")
+        if (!statsOnly) {
+            section("Рекорды")
+            s.fastestByDays?.let { (bk, d) -> bookLine("Быстрее всего", bk, "$d ${daysWord(d)}") }
+            s.slowestByDays?.let { (bk, d) -> bookLine("Дольше всего", bk, "$d ${daysWord(d)}") }
+            s.mostTime?.let { bookLine("Больше всего времени", it, formatHours(it.totalMinutes)) }
+            s.leastTime?.let { bookLine("Меньше всего времени", it, formatHours(it.totalMinutes)) }
+            if (s.fastestByDays == null) note("Появятся после первой дочитанной книги.")
+        }
 
         section("Год")
         kv("Дочитано в этом году", "${s.yearFinished}" + compareInt(s.yearFinished, s.prevYearFinished, "к прошлому году"))
@@ -270,7 +275,7 @@ class StatsFragment : Fragment() {
         val names = listOf("не читалось", "<15 мин", "<30", "<60", "час+")
         (0..4).forEach { i ->
             row.addView(View(requireContext()).apply {
-                setBackgroundColor(com.readingtracker.ui.home.Ribbons.heat(requireContext(), i))
+                setBackgroundColor(com.readingtracker.ui.RtTheme.heat(requireContext(), i))
                 layoutParams = LinearLayout.LayoutParams((12 * dp).toInt(), (12 * dp).toInt()).apply {
                     marginStart = if (i == 0) 0 else (8 * dp).toInt(); marginEnd = (3 * dp).toInt()
                 }

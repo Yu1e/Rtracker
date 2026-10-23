@@ -34,12 +34,12 @@
             android:exported="true"
             android:launchMode="singleTop" />
 
-        <!-- Ярлыки-псевдонимы: одна из четырёх иконок -->
+        <!-- Ярлыки-псевдонимы остались от выбора иконок: включён один из них, у всех зелёная стопка книг -->
         <activity-alias
             android:name=".LauncherV1"
             android:targetActivity=".MainActivity"
-            android:icon="@mipmap/ic_launcher_v1"
-            android:roundIcon="@mipmap/ic_launcher_v1"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
@@ -50,8 +50,8 @@
         <activity-alias
             android:name=".LauncherV2"
             android:targetActivity=".MainActivity"
-            android:icon="@mipmap/ic_launcher_v2"
-            android:roundIcon="@mipmap/ic_launcher_v2"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:enabled="false"
             android:exported="true">
             <intent-filter>
@@ -62,8 +62,8 @@
         <activity-alias
             android:name=".LauncherV3"
             android:targetActivity=".MainActivity"
-            android:icon="@mipmap/ic_launcher_v3"
-            android:roundIcon="@mipmap/ic_launcher_v3"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:enabled="false"
             android:exported="true">
             <intent-filter>
@@ -74,8 +74,8 @@
         <activity-alias
             android:name=".LauncherV4"
             android:targetActivity=".MainActivity"
-            android:icon="@mipmap/ic_launcher_v4"
-            android:roundIcon="@mipmap/ic_launcher_v4"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:enabled="false"
             android:exported="true">
             <intent-filter>
