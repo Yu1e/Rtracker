@@ -151,16 +151,43 @@
             android:textColor="?android:attr/textColorSecondary"
             android:textSize="13sp" />
 
-        <RadioGroup
-            android:id="@+id/rgStatus"
+        <!-- Статус: четыре плитки в две колонки, нажатие обводит рамкой и меняет статус -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp">
-            <RadioButton android:id="@+id/rbReading" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Читаю (статус не выбран)" />
-            <RadioButton android:id="@+id/rbFinished" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Дочитана" />
-            <RadioButton android:id="@+id/rbAbandoned" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Брошена" />
-            <RadioButton android:id="@+id/rbPaused" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Отложена" />
-        </RadioGroup>
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+            <com.readingtracker.ui.book.StatusTileView
+                android:id="@+id/stReading"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="10dp" />
+            <com.readingtracker.ui.book.StatusTileView
+                android:id="@+id/stFinished"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="12dp"
+            android:orientation="horizontal">
+            <com.readingtracker.ui.book.StatusTileView
+                android:id="@+id/stPaused"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="10dp" />
+            <com.readingtracker.ui.book.StatusTileView
+                android:id="@+id/stAbandoned"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvRating"

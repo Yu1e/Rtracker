@@ -38,6 +38,7 @@ object BackupManager {
                 put("needsStatusCheck", b.needsStatusCheck)
                 put("lastNotifiedAt", b.lastNotifiedAt ?: JSONObject.NULL)
                 put("manualMinutes", b.manualMinutes)
+                put("pagesRead", b.pagesRead); put("pagesTotal", b.pagesTotal)
             })
         }
         val sessions = JSONArray()
@@ -83,7 +84,9 @@ object BackupManager {
                 statusAskAt = o.optLongOrNull("statusAskAt"),
                 needsStatusCheck = o.optBoolean("needsStatusCheck"),
                 lastNotifiedAt = o.optLongOrNull("lastNotifiedAt"),
-                manualMinutes = o.optLong("manualMinutes")
+                manualMinutes = o.optLong("manualMinutes"),
+                pagesRead = o.optInt("pagesRead"),
+                pagesTotal = o.optInt("pagesTotal")
             )
         }
         val sessions = mutableListOf<ReadingSession>()

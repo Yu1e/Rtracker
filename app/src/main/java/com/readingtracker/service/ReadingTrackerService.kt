@@ -123,6 +123,7 @@ class ReadingTrackerService : Service() {
                 else {
                     pollForegroundApp()
                     checkIdle()
+                    checkScreen()
                 }
                 Diag.set(this@ReadingTrackerService, Diag.HEARTBEAT, Diag.time())
             } catch (e: Exception) {
@@ -308,6 +309,7 @@ class ReadingTrackerService : Service() {
                 foregroundReadingApp = null
                 overlay.hide()
                 formOpen = false
+                offeredBookId = null
                 handler.removeCallbacks(autoAsk)
                 pauseSession()
                 closeUnassigned()
@@ -349,6 +351,9 @@ class ReadingTrackerService : Service() {
         pauseSession()
         idle = false
         signalsAtEntry = ActivitySignal.count(pkg)
+        enteredAt = System.currentTimeMillis()
+        handledTitle = null
+        offeredBookId = null
         val appName = trackedApps[pkg] ?: pkg
         Diag.set(this, Diag.EVENT, "${Diag.time()} вход в $appName")
 
@@ -369,18 +374,7 @@ class ReadingTrackerService : Service() {
                 if (foregroundReadingApp != pkg) return@withContext
                 try {
                     if (open == null) startUnassigned(pkg, appName)
-                    else overlay.show(
-                        appName = appName,
-                        rememberedBookId = open.id,
-                        db = db,
-                        onContinue = { bookId ->
-                            overlay.hide()
-                            activeBookId = bookId
-                            startSessionInternal(bookId, pkg)
-                        },
-                        onNewBook = { title, author -> assignNewBook(title, author, pkg, appName) },
-                        onDismiss = { overlay.hide() }
-                    )
+                    else offerContinue(pkg, appName, open.id)
                 } catch (e: Exception) {
                     Diag.set(this@ReadingTrackerService, Diag.ERROR, "${Diag.time()} пузырёк: $e")
                 }
@@ -416,9 +410,13 @@ class ReadingTrackerService : Service() {
         if (foregroundReadingApp != pkg) return
         askedAutomatically = true
         formOpen = true
+        // Название с экрана читалки, если оно есть
+        val seen = ReaderScreen.title?.takeIf { ReaderScreen.titlePkg == pkg && ReaderScreen.titleAt >= enteredAt }
         overlay.showForm(pendingAppName,
             onNewBook = { title, author -> assignNewBook(title, author, pkg, pendingAppName) },
-            onDismiss = { showPill() })
+            onDismiss = { showPill() },
+            title = seen ?: "",
+            author = seen?.let { ReaderScreen.authorFor(this, it) } ?: "")
     }
 
     private fun closeUnassigned() {
@@ -441,6 +439,12 @@ class ReadingTrackerService : Service() {
     private fun assignNewBook(title: String, author: String, pkg: String, appName: String) {
         overlay.hide()
         formOpen = false
+        offeredBookId = null
+        // Книгу назвали сами: название на экране сейчас считается ею, второй раз не спрашиваем
+        ReaderScreen.title?.takeIf { ReaderScreen.titlePkg == pkg && ReaderScreen.titleAt >= enteredAt }
+            ?.let { handledTitle = it }
+        // Шла другая книга — её подход закрывается
+        pauseSession()
         handler.removeCallbacks(autoAsk)
         closeUnassigned()
         val pieces = if (unassignedPkg == pkg) unassigned.toList() else emptyList()
@@ -454,6 +458,118 @@ class ReadingTrackerService : Service() {
             withContext(Dispatchers.Main) {
                 activeBookId = bookId
                 if (foregroundReadingApp == pkg && isScreenOn) startSessionInternal(bookId, pkg)
+            }
+        }
+    }
+
+    // ── Книга с экрана читалки (ЛитРес) ──────────────────────────────────────
+
+    private var enteredAt = 0L
+    /** Название, о котором уже спросили (или которое уже идёт) с этого входа в читалку. */
+    private var handledTitle: String? = null
+    /** Книга в пузырьке «продолжаем?», который сейчас на экране. */
+    private var offeredBookId: Long? = null
+    private var pagesSeenAt = 0L
+
+    /** Пузырёк «продолжаем эту книгу?». */
+    private fun offerContinue(pkg: String, appName: String, bookId: Long) {
+        offeredBookId = bookId
+        formOpen = false
+        overlay.show(
+            appName = appName,
+            rememberedBookId = bookId,
+            db = db,
+            onContinue = { id -> continueBook(id, pkg) },
+            onNewBook = { title, author -> assignNewBook(title, author, pkg, appName) },
+            onDismiss = { dismissOffer(pkg) }
+        )
+    }
+
+    private fun dismissOffer(pkg: String) {
+        offeredBookId = null
+        formOpen = false
+        // Без открытой книги остаётся значок «＋ книга»
+        if (activeBookId == null && unassignedPkg == pkg) showPill() else overlay.hide()
+    }
+
+    /** Продолжаем книгу: прежний подход закрыт, время без книги (если копилось) идёт ей. */
+    private fun continueBook(bookId: Long, pkg: String) {
+        overlay.hide()
+        offeredBookId = null
+        formOpen = false
+        handler.removeCallbacks(autoAsk)
+        if (activeBookId == bookId && activeSessionId != null) return
+        pauseSession()
+        closeUnassigned()
+        val pieces = if (unassignedPkg == pkg) unassigned.toList() else emptyList()
+        clearUnassigned()
+        activeBookId = bookId
+        if (pieces.isNotEmpty()) scope.launch {
+            for (p in pieces) {
+                db.sessionDao().insertSession(ReadingSession(bookId = bookId, startTime = p[0], endTime = p[1], appPackage = pkg))
+                accumulateTime(bookId, p[0], p[1])
+            }
+        }
+        if (foregroundReadingApp == pkg && isScreenOn) startSessionInternal(bookId, pkg)
+    }
+
+    /**
+     * Название и страницы, прочитанные с экрана читалки. Новая книга на экране —
+     * пузырёк «продолжаем «…»?» или форма с готовым названием; страницы идут в карточку книги.
+     */
+    private fun checkScreen() {
+        val pkg = foregroundReadingApp ?: return
+        val pagesAt = ReaderScreen.pagesAt
+        if (pagesAt > pagesSeenAt && ReaderScreen.pagesPkg == pkg && pagesAt >= enteredAt) {
+            pagesSeenAt = pagesAt
+            val read = ReaderScreen.pagesRead; val total = ReaderScreen.pagesTotal
+            val screenTitle = ReaderScreen.title
+            activeBookId?.let { id ->
+                scope.launch {
+                    val bk = db.bookDao().getBookById(id) ?: return@launch
+                    // Страницы — только той книге, что на экране
+                    if (screenTitle == null || ReaderScreen.sameTitle(bk.title, screenTitle) || bk.title.isBlank())
+                        db.bookDao().setPages(id, read, total)
+                }
+            }
+        }
+
+        val title = ReaderScreen.title ?: return
+        if (ReaderScreen.titlePkg != pkg || ReaderScreen.titleAt < enteredAt) return
+        if (formOpen || ReaderScreen.sameTitle(title, handledTitle)) return
+        handledTitle = title
+        val activeId = activeBookId
+        val offered = offeredBookId
+        scope.launch {
+            val books = db.bookDao().getAllBooksSync()
+            val active = activeId?.let { id -> books.firstOrNull { it.id == id } }
+            val author = ReaderScreen.authorFor(this@ReadingTrackerService, title)
+            if (active != null && ReaderScreen.sameTitle(active.title, title)) {
+                // Читается та же книга: автор подтягивается из библиотеки, если его не было
+                if (active.author.isBlank() && author != null) db.bookDao().fillAuthor(active.id, author)
+                return@launch
+            }
+            val open = books.filter {
+                ReaderScreen.sameTitle(it.title, title) &&
+                    (it.status == Book.STATUS_READING || it.status == Book.STATUS_PAUSED)
+            }
+            val known = open.firstOrNull { it.appPackage == pkg } ?: open.firstOrNull()
+            withContext(Dispatchers.Main) {
+                if (foregroundReadingApp != pkg) return@withContext
+                val appName = trackedApps[pkg] ?: pkg
+                when {
+                    known != null && known.id == offered -> {}
+                    known != null -> offerContinue(pkg, appName, known.id)
+                    else -> {
+                        formOpen = true
+                        offeredBookId = null
+                        handler.removeCallbacks(autoAsk)
+                        overlay.showForm(appName,
+                            onNewBook = { t, a -> assignNewBook(t, a, pkg, appName) },
+                            onDismiss = { dismissOffer(pkg) },
+                            title = title, author = author ?: "")
+                    }
+                }
             }
         }
     }

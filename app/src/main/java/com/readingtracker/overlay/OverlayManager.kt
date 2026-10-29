@@ -41,10 +41,11 @@ class OverlayManager(private val context: Context) {
         }
     }
 
-    /** Форма новой книги сразу. */
-    fun showForm(appName: String, onNewBook: (String, String) -> Unit, onDismiss: () -> Unit) {
+    /** Форма новой книги сразу; название и автор могут быть уже заполнены (с экрана читалки). */
+    fun showForm(appName: String, onNewBook: (String, String) -> Unit, onDismiss: () -> Unit,
+                 title: String = "", author: String = "") {
         hide()
-        showNewBookForm(LayoutInflater.from(themed), appName, onNewBook, onDismiss)
+        showNewBookForm(LayoutInflater.from(themed), appName, onNewBook, onDismiss, title, author)
     }
 
     /**
@@ -103,12 +104,18 @@ class OverlayManager(private val context: Context) {
         inflater: LayoutInflater,
         appName: String,
         onNewBook: (String, String) -> Unit,
-        onDismiss: () -> Unit
+        onDismiss: () -> Unit,
+        title: String = "",
+        author: String = ""
     ) {
         val view = inflater.inflate(R.layout.overlay_new_book, null)
         view.findViewById<TextView>(R.id.tvAppName).text = appName
         val etTitle = view.findViewById<EditText>(R.id.etTitle)
         val etAuthor = view.findViewById<EditText>(R.id.etAuthor)
+        etTitle.setText(title)
+        etAuthor.setText(author)
+        // Название уже взято с экрана: клавиатура не выскакивает, достаточно нажать «Начать читать»
+        val prefilled = title.isNotBlank()
 
         view.findViewById<Button>(R.id.btnSave).setOnClickListener {
             val title = etTitle.text.toString().trim()
@@ -126,13 +133,14 @@ class OverlayManager(private val context: Context) {
             onDismiss()
         }
 
-        addToWindow(view, focusable = true)
+        addToWindow(view, focusable = true, keyboard = !prefilled)
+        if (prefilled) return
         etTitle.requestFocus()
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(etTitle, InputMethodManager.SHOW_IMPLICIT)
     }
 
-    private fun addToWindow(view: View, focusable: Boolean, small: Boolean = false) {
+    private fun addToWindow(view: View, focusable: Boolean, small: Boolean = false, keyboard: Boolean = true) {
         val flags = if (focusable) {
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
         } else {
@@ -156,7 +164,8 @@ class OverlayManager(private val context: Context) {
                 y = 80
             }
             if (focusable) {
-                softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or
+                softInputMode = (if (keyboard) WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
+                        else WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN) or
                         WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
             }
         }

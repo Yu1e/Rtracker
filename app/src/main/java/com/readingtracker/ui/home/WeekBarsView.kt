@@ -14,7 +14,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * «минут чтения по дням»: семь столбиков пн–вс.
+ * «минут чтения по дням»: семь столбиков за последние семь дней, сегодня справа.
  * Числа в минутах: у высоких внутри, у низких сверху. Корона над рекордом недели.
  * Сегодняшний столбик и подпись дня обведены рамкой.
  */
@@ -25,7 +25,7 @@ class WeekBarsView @JvmOverloads constructor(
     private val d = resources.displayMetrics.density
     private var values = IntArray(7)
     private var today = 6
-    private val days = arrayOf("пн", "вт", "ср", "чт", "пт", "сб", "вс")
+    private var days = arrayOf("пн", "вт", "ср", "чт", "пт", "сб", "вс")
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 1.5f }
@@ -43,7 +43,9 @@ class WeekBarsView @JvmOverloads constructor(
     /** Корона над лучшим днём; выключается настройкой «только статистика». */
     var crownOn = true
 
-    fun set(values: IntArray, todayIndex: Int) {
+    /** labels — подписи дней по порядку столбиков (скользящие 7 дней, сегодня последний). */
+    fun set(values: IntArray, todayIndex: Int, labels: List<String>? = null) {
+        if (labels != null && labels.size == 7) days = labels.toTypedArray()
         this.values = values.copyOf(7)
         this.today = todayIndex
         contentDescription = days.indices.joinToString(", ") { "${days[it]} ${this.values[it]} мин" }

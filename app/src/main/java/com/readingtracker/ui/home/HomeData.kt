@@ -3,19 +3,20 @@ package com.readingtracker.ui.home
 import com.readingtracker.data.Book
 import com.readingtracker.data.ReadingSession
 import com.readingtracker.stats.StatsCalc
-import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import java.time.temporal.TemporalAdjusters
 
 /** Всё, что показывает главный экран. */
 data class HomeData(
     val today: LocalDate,
     val dayNumber: Int,
+    /** Скользящие 7 дней: сегодня всегда последний справа. */
     val week: IntArray,
     val todayIndex: Int,
+    /** Подписи дней под столбиками: «пт», «сб» … сегодняшний последний. */
+    val weekLabels: List<String>,
     val book: Book?,
     /** Читаемые книги для стопки: первая — сверху (читалась последней), не больше трёх. */
     val reading: List<Book>,
@@ -31,6 +32,7 @@ data class HomeData(
     val record: Int
 ) {
     companion object {
+        private val DAY_SHORT = arrayOf("пн", "вт", "ср", "чт", "пт", "сб", "вс")
         private val zone: ZoneId get() = ZoneId.systemDefault()
         private fun Long.toDate(): LocalDate = Instant.ofEpochMilli(this).atZone(zone).toLocalDate()
 
@@ -38,9 +40,9 @@ data class HomeData(
             val st = StatsCalc.compute(books, sessions, now)
             val today = st.today
 
-            val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            val week = IntArray(7) { (st.dayMinutes[monday.plusDays(it.toLong())] ?: 0L).toInt() }
-            val todayIndex = today.dayOfWeek.value - 1
+            val first7 = today.minusDays(6)
+            val week = IntArray(7) { (st.dayMinutes[first7.plusDays(it.toLong())] ?: 0L).toInt() }
+            val weekLabels = (0 until 7).map { DAY_SHORT[first7.plusDays(it.toLong()).dayOfWeek.value - 1] }
 
             // № дня: статистика ведётся непрерывно с первого дня
             val first = listOfNotNull(
@@ -79,7 +81,8 @@ data class HomeData(
                 today = today,
                 dayNumber = dayNumber,
                 week = week,
-                todayIndex = todayIndex,
+                todayIndex = 6,
+                weekLabels = weekLabels,
                 book = book,
                 reading = reading,
                 bookMinutes = bookMinutes,

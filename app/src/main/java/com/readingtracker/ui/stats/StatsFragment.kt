@@ -70,6 +70,9 @@ class StatsFragment : Fragment() {
             "Стрик" to "${s.currentStreak} ${daysWord(s.currentStreak)}",
             "В этом месяце" to formatHours(s.monthMinutes)
         )
+        // Витраж «дней подряд» на главном — 30 осколков; сколько до полного окна
+        val nextWindow = (s.currentStreak / 30 + 1) * 30
+        kv("Дней подряд до $nextWindow", "${nextWindow - s.currentStreak}")
         if (s.currentStreak > 0 && !s.readToday) {
             note("Сегодня ещё не читалось — стрик продолжится, если открыть книгу до полуночи.")
         }

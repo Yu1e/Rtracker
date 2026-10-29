@@ -44,8 +44,8 @@
     <color name="gl_book_m">#FF5CA8</color>
     <color name="gl_book_l">#2EC4E6</color>
     <color name="gl_book_cap">#1E1838</color>
-    <color name="gl_ghost">#8C86A6</color>
-    <color name="gl_ghost_stripe">#D8D0F5</color>
+    <color name="gl_ghost">#3B2A8F</color>
+    <color name="gl_ghost_stripe">#CC3B2A8F</color>
     <color name="gl_shelf">#4F4870</color>
     <color name="gl_block_ghost">#A59FC0</color>
     <color name="gl_block_ghost_big">#C9C3DE</color>

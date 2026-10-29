@@ -45,6 +45,8 @@ class HomeEinkFragment : Fragment() {
             if (book != null) BookActivity.open(requireContext(), book.id) else BookActivity.create(requireContext())
         }
         b.btnTimer.setOnClickListener { toggleTimer() }
+        // «сегодня за книгой» ведёт на статистику
+        (b.ring.parent as? View)?.setOnClickListener { (activity as? com.readingtracker.MainActivity)?.goTo(2) }
     }
 
     override fun onResume() {
@@ -141,7 +143,7 @@ class HomeEinkFragment : Fragment() {
         }
 
         b.weekBars.crownOn = !statsOnly
-        b.weekBars.set(d.week, d.todayIndex)
+        b.weekBars.set(d.week, d.todayIndex, d.weekLabels)
 
         val month = MONTHS_NOM[d.today.monthValue - 1]
         b.tvMonth.text = "книг за $month: ${d.finishedThisMonth.size}" +

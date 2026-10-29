@@ -36,6 +36,13 @@ interface BookDao {
     @Delete
     suspend fun deleteBook(book: Book)
 
+    /** Страницы из читалки: отдельным запросом, чтобы не затереть время, которое пишет служба. */
+    @Query("UPDATE books SET pagesRead = :read, pagesTotal = :total WHERE id = :id")
+    suspend fun setPages(id: Long, read: Int, total: Int)
+
+    @Query("UPDATE books SET author = :author WHERE id = :id AND author = ''")
+    suspend fun fillAuthor(id: Long, author: String)
+
     @Query("DELETE FROM books")
     suspend fun deleteAll()
 

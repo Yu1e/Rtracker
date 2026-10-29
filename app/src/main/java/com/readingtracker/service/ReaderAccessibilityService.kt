@@ -94,6 +94,44 @@ class ReaderAccessibilityService : AccessibilityService() {
         try {
             scout(pkg, event)
         } catch (_: Exception) {}
+        if (tracked[pkg] == "ЛитРес") try { litres(pkg, event) } catch (_: Exception) {}
+    }
+
+    // ── ЛитРес: название, страницы, автор ─────────────────────────────────────
+
+    private var litresAt = 0L
+
+    private fun litres(pkg: String, event: AccessibilityEvent) {
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+            event.eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED) return
+        val now = System.currentTimeMillis()
+        if (now - litresAt < 1200) return
+        litresAt = now
+        val root = rootInActiveWindow ?: return
+        fun ids(node: AccessibilityNodeInfo, name: String): List<AccessibilityNodeInfo> =
+            try { node.findAccessibilityNodeInfosByViewId("$pkg:id/$name") ?: emptyList() } catch (_: Exception) { emptyList() }
+        fun AccessibilityNodeInfo.str() = text?.toString()?.replace('\n', ' ')?.trim()?.takeIf { it.isNotEmpty() }
+
+        // Экран чтения и меню читалки
+        (ids(root, "book_name") + ids(root, "book_name_title")).firstNotNullOfOrNull { it.str() }
+            ?.let { ReaderScreen.seeTitle(pkg, it) }
+        ids(root, "progress_text_progress").firstNotNullOfOrNull { it.str() }
+            ?.let { ReaderScreen.seePages(pkg, it) }
+
+        // Библиотека и магазин: название и автор в одной карточке
+        for (n in ids(root, "textViewBookName").take(40)) {
+            val t = n.str() ?: continue
+            val parent = n.parent ?: continue
+            var author = ids(parent, "textViewAuthor").firstNotNullOfOrNull { it.str() }
+            if (author == null) {
+                // Карточка может быть на уровень выше; но не весь список, где книг много
+                val grand = parent.parent
+                if (grand != null && ids(grand, "textViewBookName").size == 1)
+                    author = ids(grand, "textViewAuthor").firstNotNullOfOrNull { it.str() }
+            }
+            if (author != null) ReaderScreen.rememberAuthor(this, t, author)
+        }
     }
 
     // ── Разведка ──────────────────────────────────────────────────────────────

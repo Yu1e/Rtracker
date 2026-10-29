@@ -33,9 +33,11 @@ class ShelfView @JvmOverloads constructor(
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    // Стекло: тёмно-фиолетовый пунктир потолще (на тёмном — светло-лиловый), иначе бледный тонкий
+    private val glass = com.readingtracker.ui.RtTheme.isGlass(context)
     private val ghostPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE; strokeWidth = 1.1f
-        pathEffect = DashPathEffect(floatArrayOf(2.6f, 1.9f), 0f)
+        style = Paint.Style.STROKE; strokeWidth = if (glass) 1.7f else 1.1f
+        pathEffect = DashPathEffect(if (glass) floatArrayOf(3.2f, 2f) else floatArrayOf(2.6f, 1.9f), 0f)
     }
 
     /** ids готовых книг по порядку дочитывания (первая встанет у стенки); ghosts — сколько читается. */

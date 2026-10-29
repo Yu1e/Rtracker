@@ -26,7 +26,11 @@ data class Book(
     /** Когда последний раз показано уведомление о статусе. */
     val lastNotifiedAt: Long? = null,
     /** Время, добавленное вручную (книга внесена руками); уже входит в totalMinutes. */
-    val manualMinutes: Long = 0
+    val manualMinutes: Long = 0,
+    /** Страница, на которой книга открыта в читалке («158 из 1329»); 0 — неизвестно. */
+    val pagesRead: Int = 0,
+    /** Всего страниц; 0 — неизвестно. */
+    val pagesTotal: Int = 0
 ) {
     companion object {
         const val STATUS_READING = "reading"

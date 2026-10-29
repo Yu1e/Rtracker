@@ -11,7 +11,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.readingtracker.Constants
-import com.readingtracker.R
 import com.readingtracker.data.AppDatabase
 import com.readingtracker.data.Book
 import com.readingtracker.data.BookActions
@@ -46,6 +45,11 @@ class BookActivity : AppCompatActivity() {
     private var startDate = System.currentTimeMillis()
     private var endDate: Long? = null
     private lateinit var sources: List<Pair<String, String>>
+    private var status = Book.STATUS_READING
+    private val tiles by lazy {
+        listOf(b.stReading to Book.STATUS_READING, b.stFinished to Book.STATUS_FINISHED,
+            b.stPaused to Book.STATUS_PAUSED, b.stAbandoned to Book.STATUS_ABANDONED)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         com.readingtracker.ui.RtTheme.apply(this)
@@ -61,6 +65,10 @@ class BookActivity : AppCompatActivity() {
         b.btnStartDate.setOnClickListener { pickDate(startDate) { startDate = it; updateDates() } }
         b.btnEndDate.setOnClickListener { pickEndDate() }
         b.btnSave.setOnClickListener { save() }
+        for ((tile, st) in tiles) {
+            tile.status = st
+            tile.setOnClickListener { pickStatus(st) }
+        }
 
         lifecycleScope.launch {
             val authors = db.bookDao().getAllAuthors()
@@ -74,7 +82,7 @@ class BookActivity : AppCompatActivity() {
 
     private fun setupNew() {
         b.tvHeader.text = "Новая книга"
-        b.rbReading.isChecked = true
+        showStatus(Book.STATUS_READING)
         b.spSource.setSelection(sources.indexOfFirst { it.second == Book.PKG_PAPER }.coerceAtLeast(0))
         updateRatingLabel(0)
         updateDates()
@@ -110,12 +118,7 @@ class BookActivity : AppCompatActivity() {
             startDate = bk.startDate
             endDate = bk.endDate
             updateDates()
-            when (bk.status) {
-                Book.STATUS_FINISHED -> b.rbFinished.isChecked = true
-                Book.STATUS_ABANDONED -> b.rbAbandoned.isChecked = true
-                Book.STATUS_PAUSED -> b.rbPaused.isChecked = true
-                else -> b.rbReading.isChecked = true
-            }
+            showStatus(bk.status)
             b.slRating.value = (bk.rating ?: 0).toFloat()
             updateRatingLabel(bk.rating ?: 0)
             b.etNotes.setText(bk.notes)
@@ -135,6 +138,25 @@ class BookActivity : AppCompatActivity() {
         }
     }
 
+    private fun showStatus(st: String) {
+        status = st
+        for ((tile, s) in tiles) tile.checked = s == st
+    }
+
+    /** Нажатие на плитку: рамка переходит, у сохранённой книги статус меняется сразу. */
+    private fun pickStatus(st: String) {
+        if (st == status) return
+        showStatus(st)
+        val id = book?.id ?: return
+        lifecycleScope.launch {
+            BookActions.setStatus(this@BookActivity, id, st)
+            val fresh = db.bookDao().getBookById(id) ?: return@launch
+            book = fresh
+            endDate = fresh.endDate
+            updateDates()
+        }
+    }
+
     private suspend fun showBookStats(bk: Book) {
         val sessions = db.sessionDao().getSessionsForBook(bk.id)
         // Книга внесена руками (нет записанных подходов) или время уже добавлялось вручную
@@ -148,6 +170,7 @@ class BookActivity : AppCompatActivity() {
                 if (bk.endDate == null) " (и продолжается)" else "")
             appendLine("Дней с чтением: $readingDays")
             if (readingDays > 0) appendLine("В среднем за день чтения: ${formatMinutes(bk.totalMinutes / readingDays)}")
+            if (bk.pagesTotal > 0) appendLine("Страницы: ${bk.pagesRead} из ${bk.pagesTotal}")
             appendLine("Подходов к книге: ${sessions.size}")
             sessions.lastOrNull()?.let {
                 appendLine("Последний раз: ${SimpleDateFormat("d MMMM, HH:mm", Locale("ru")).format(Date(it.startTime))}")
@@ -195,12 +218,6 @@ class BookActivity : AppCompatActivity() {
         if (title.isEmpty() && author.isEmpty()) {
             b.etTitle.error = "Заполните название или автора"
             return
-        }
-        val status = when (b.rgStatus.checkedRadioButtonId) {
-            R.id.rbFinished -> Book.STATUS_FINISHED
-            R.id.rbAbandoned -> Book.STATUS_ABANDONED
-            R.id.rbPaused -> Book.STATUS_PAUSED
-            else -> Book.STATUS_READING
         }
         val source = sources[b.spSource.selectedItemPosition.coerceAtLeast(0)]
         val rating = b.slRating.value.toInt().takeIf { it > 0 }

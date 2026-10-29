@@ -27,6 +27,14 @@ import com.readingtracker.reminder.StatusPrompt
 import com.readingtracker.launcher.ReaderLauncher
 import com.readingtracker.widget.WidgetUpdater
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import android.widget.Toast
+import com.readingtracker.data.AppDatabase
+import com.readingtracker.service.ManualTimer
+import com.readingtracker.ui.NavIcons
+import com.readingtracker.ui.book.BookActivity
+import com.readingtracker.ui.home.HomeData
 
 class MainActivity : AppCompatActivity() {
 
@@ -65,12 +73,13 @@ class MainActivity : AppCompatActivity() {
         if (eink) pager.isUserInputEnabled = false
 
         binding.bottomNav.setItems(listOf(
-            0 to "главная",
-            1 to "книги",
-            2 to "статистика",
-            3 to "настройки"
-        ), iconIds = setOf(3))
+            0 to NavIcons.Kind.HOME,
+            1 to NavIcons.Kind.BOOKS,
+            2 to NavIcons.Kind.STATS,
+            3 to NavIcons.Kind.SETTINGS
+        ), labels = mapOf(0 to "главная", 1 to "книги", 2 to "статистика", 3 to "настройки"))
         binding.bottomNav.onSelect = { tab -> goTo(tab) }
+        binding.bottomNav.timer.setOnClickListener { toggleTimer() }
         pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) { binding.bottomNav.select(position % TABS) }
             override fun onPageScrolled(position: Int, offset: Float, px: Int) {
@@ -90,8 +99,52 @@ class MainActivity : AppCompatActivity() {
         checkPermissions()
     }
 
+    // ── Ручной таймер: кнопка в середине меню ────────────────────────────────
+
+    private val timerTick = object : Runnable {
+        override fun run() {
+            val running = ManualTimer.bookId != null
+            val min = if (running) ((System.currentTimeMillis() - ManualTimer.since) / 60_000).coerceAtLeast(0) else 0
+            binding.bottomNav.timer.setState(running, min)
+            binding.bottomNav.timer.removeCallbacks(this)
+            if (running) binding.bottomNav.timer.postDelayed(this, 20_000)
+        }
+    }
+
+    private val timerChanged: () -> Unit = { timerTick.run() }
+
+    override fun onStart() {
+        super.onStart()
+        ManualTimer.addListener(timerChanged)
+        timerTick.run()
+    }
+
+    override fun onStop() {
+        ManualTimer.removeListener(timerChanged)
+        binding.bottomNav.timer.removeCallbacks(timerTick)
+        super.onStop()
+    }
+
+    /** Запускает таймер для верхней книги стопки или останавливает идущий. */
+    private fun toggleTimer() {
+        if (ManualTimer.bookId != null) { ManualTimer.stop(this); return }
+        lifecycleScope.launch {
+            val book = withContext(Dispatchers.IO) {
+                val db = AppDatabase.getInstance(this@MainActivity)
+                HomeData.compute(db.bookDao().getAllBooksSync(), db.sessionDao().getAllSessions()).book
+            }
+            if (book == null) {
+                Toast.makeText(this@MainActivity, "Сначала добавьте книгу", Toast.LENGTH_SHORT).show()
+                BookActivity.create(this@MainActivity)
+            } else {
+                ManualTimer.start(this@MainActivity, book.id)
+                Toast.makeText(this@MainActivity, ManualTimer.hint(), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     /** Переход к экрану кратчайшим путём по кругу, со сдвигом. */
-    private fun goTo(tab: Int) {
+    fun goTo(tab: Int) {
         val pager = binding.pager
         val cur = pager.currentItem
         var delta = ((tab - cur % TABS) % TABS + TABS) % TABS

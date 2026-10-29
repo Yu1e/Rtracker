@@ -48,6 +48,8 @@ class BookCoverView @JvmOverloads constructor(
     private var emptyText: String = ""
     private var timeText: String = ""
     private var bricks: List<Brick> = emptyList()
+    /** Доля прочитанных страниц (0..1) или null, если страниц трекер не знает. */
+    private var progress: Float? = null
     private var shuffleSeed: Long = System.nanoTime()
     private var placed: List<Placed> = emptyList()  // снизу вверх
     private var titleLayout: StaticLayout? = null
@@ -60,15 +62,17 @@ class BookCoverView @JvmOverloads constructor(
 
     private fun col(id: Int) = RtColors.c(context, id)
 
-    fun setBooks(items: List<Item>, timeText: String, bricks: List<Brick>) {
+    fun setBooks(items: List<Item>, timeText: String, bricks: List<Brick>, progress: Float? = null) {
         this.items = items.take(3)
         this.timeText = timeText
         this.bricks = bricks
+        this.progress = progress?.coerceIn(0f, 1f)
         titleLayout = null
         arrange()
         val top = this.items.firstOrNull()
         contentDescription = buildString {
             if (top != null) append(listOf(top.author, top.title, timeText).filter { it.isNotBlank() }.joinToString(", "))
+            this@BookCoverView.progress?.let { append(", прочитано: ${(it * 100).toInt()} %") }
             if (this@BookCoverView.items.size > 1) append(". Ещё читается: ${this@BookCoverView.items.size - 1}")
         }
         invalidate()
@@ -79,6 +83,7 @@ class BookCoverView @JvmOverloads constructor(
         emptyText = text
         timeText = ""
         bricks = emptyList()
+        progress = null
         titleLayout = null
         placed = emptyList()
         contentDescription = text
@@ -282,7 +287,24 @@ class BookCoverView @JvmOverloads constructor(
         timePaint.color = col(R.color.rt_band_text)
         val timeTop = top + 14.5f
         canvas.drawText(timeText, left, timeTop - timePaint.ascent() * 0.86f, timePaint)
+        drawProgress(canvas, left + timePaint.measureText(timeText), right, timeTop + 9.5f)
         drawBricks(canvas, left, right, top + 40.5f)
+    }
+
+    /** Маленькая круговая диаграмма прочитанного справа от времени — если трекер знает страницы. */
+    private fun drawProgress(canvas: Canvas, textEnd: Float, right: Float, cy: Float) {
+        val p = progress ?: return
+        val r = 8.5f
+        val cx = right - r
+        if (textEnd + 6f > cx - r) return
+        stroke.color = col(R.color.rt_band_rule); stroke.strokeWidth = 1.4f
+        canvas.drawCircle(cx, cy, r, stroke)
+        if (p > 0f) {
+            fill.color = col(R.color.rt_band_text)
+            canvas.drawArc(RectF(cx - r + 1.6f, cy - r + 1.6f, cx + r - 1.6f, cy + r - 1.6f), -90f, 360f * p, true, fill)
+        }
+        stroke.color = col(R.color.rt_band_text); stroke.strokeWidth = 1f
+        canvas.drawCircle(cx, cy, r, stroke)
     }
 
     private fun drawBricks(canvas: Canvas, left: Float, right: Float, top: Float) {

@@ -25,7 +25,6 @@ import com.readingtracker.databinding.FragmentHomeBinding
 import com.readingtracker.launcher.ReaderLauncher
 import com.readingtracker.rewards.Achievements
 import com.readingtracker.rewards.Celebrations
-import com.readingtracker.service.ManualTimer
 import com.readingtracker.ui.RtTheme
 import com.readingtracker.ui.Fonts
 import com.readingtracker.ui.RtColors
@@ -52,6 +51,9 @@ class HomeFragment : Fragment() {
         // Стопка, изгибы ляссе и призраки на полке — по-новому при каждом открытии
         b.bookCover.reshuffle()
         b.shelf.reshuffle()
+        b.streakGlass.reshuffle()
+        // «сегодня за книгой» ведёт на статистику
+        b.ringTile.setOnClickListener { (activity as? com.readingtracker.MainActivity)?.goTo(2) }
 
         b.bookCover.setOnClickListener {
             val book = data?.book
@@ -89,7 +91,7 @@ class HomeFragment : Fragment() {
 
         // Неделя
         b.weekBars.crownOn = !statsOnly
-        b.weekBars.set(d.week, d.todayIndex)
+        b.weekBars.set(d.week, d.todayIndex, d.weekLabels)
 
         // Книги стопкой
         val book = d.book
@@ -105,7 +107,8 @@ class HomeFragment : Fragment() {
                 )
             }
             Ribbons.setCurrent(ctx, items.first().palette)
-            b.bookCover.setBooks(items, formatHM(d.bookMinutes), d.bricks)
+            val progress = if (book.pagesTotal > 0) book.pagesRead / book.pagesTotal.toFloat() else null
+            b.bookCover.setBooks(items, formatHM(d.bookMinutes), d.bricks, progress)
         } else {
             Ribbons.setCurrent(ctx, Ribbons.fallback)
             b.bookCover.setEmpty("здесь появится книга, которую вы читаете")
@@ -138,7 +141,7 @@ class HomeFragment : Fragment() {
                 ReaderLauncher.open(ctx, readPkg)
             }
         }
-        buildReaders(readers.map { it.key to it.value }, book)
+        buildReaders(readers.map { it.key to it.value })
 
         // Сегодня за книгой
         val goal = Prefs.goalMinutes(ctx)
@@ -154,104 +157,39 @@ class HomeFragment : Fragment() {
             else -> "цель: $goal мин"
         }
 
-        // Дни подряд
+        // Дни подряд: витраж, после 30 дней — розетка у заголовка
         b.tvStreak.text = d.streak.toString()
-        if (statsOnly) {
-            // Без рекордов: только сами дни
-            b.streakBlocks.set(d.streak, d.streak)
-            b.tvRecordRight.visibility = View.GONE
-            b.tvStreakCaption.text = ""
-        } else {
-            b.streakBlocks.set(d.streak, d.record)
-            if (d.streak == 0) {
-                b.tvRecordRight.visibility = if (d.record > 0) View.VISIBLE else View.GONE
-                b.tvRecordRight.text = "рекорд: ${d.record}"
-                b.tvStreakCaption.text = if (d.record > 0) "начать заново можно сегодня" else "начать можно сегодня"
-                b.tvStreakCaption.setTextColor(col(R.color.rt_ink))
-            } else {
-                b.tvRecordRight.visibility = View.GONE
-                b.tvStreakCaption.setTextColor(col(R.color.rt_ink2))
-                b.tvStreakCaption.text = if (d.streak >= d.record) "новый рекорд" else "до рекорда: ${d.record - d.streak}"
-            }
-        }
+        b.streakGlass.set(d.streak)
+        b.rosette.visibility = if (d.streak >= StainedGlassView.CELLS) View.VISIBLE else View.GONE
     }
 
-    /** Ряд под книгой: ручной таймер и кнопки читалок. */
-    private fun buildReaders(readers: List<Pair<String, String>>, book: Book?) {
+    /** Ряд под книгой: кнопки читалок. Таймер — в середине нижнего меню. */
+    private fun buildReaders(readers: List<Pair<String, String>>) {
         val ctx = requireContext()
         val dp = resources.displayMetrics.density
         b.readersRow.removeAllViews()
-        b.readersRow.visibility = View.VISIBLE
-        b.tvReadersLabel.visibility = View.VISIBLE
-        b.tvReadersLabel.text = if (readers.isEmpty()) "таймер вручную" else "таймер и читалки"
+        val has = readers.isNotEmpty()
+        b.readersRow.visibility = if (has) View.VISIBLE else View.INVISIBLE
+        b.tvReadersLabel.visibility = if (has) View.VISIBLE else View.INVISIBLE
+        b.tvReadersLabel.text = "открыть читалку"
         val btnBg = RtTheme.resId(ctx, R.attr.rtReaderBtn)
-        fun cell(text: CharSequence, onClick: () -> Unit) = TextView(ctx).apply {
-            this.text = text
-            gravity = Gravity.CENTER
-            setTextColor(col(R.color.rt_ink))
-            setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13f)
-            typeface = Fonts.regular(ctx)
-            maxLines = 2
-            if (btnBg != 0) setBackgroundResource(btnBg)
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { onClick() }
-        }
-        timerCell = cell(timerText(), { toggleTimer(book) })
-        val all = listOf(timerCell!!) + readers.map { (pkg, name) -> cell(name, { ReaderLauncher.open(ctx, pkg) }) }
-        all.forEachIndexed { i, tv ->
+        readers.forEachIndexed { i, (pkg, name) ->
+            val tv = TextView(ctx).apply {
+                text = name
+                gravity = Gravity.CENTER
+                setTextColor(col(R.color.rt_ink))
+                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13f)
+                typeface = Fonts.regular(ctx)
+                maxLines = 2
+                if (btnBg != 0) setBackgroundResource(btnBg)
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { ReaderLauncher.open(ctx, pkg) }
+            }
             val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
             if (i > 0) lp.marginStart = (6 * dp).toInt()
             b.readersRow.addView(tv, lp)
         }
-        if (ManualTimer.bookId != null) timerCell?.postDelayed(tick, 30_000)
-    }
-
-    private var timerCell: TextView? = null
-
-    /** «▶ таймер» или «■ стоп» и сколько идёт. */
-    private fun timerText(): CharSequence {
-        if (ManualTimer.bookId == null) return "▶ таймер"
-        val min = ((System.currentTimeMillis() - ManualTimer.since) / 60_000).coerceAtLeast(0)
-        return "■ стоп\n$min мин"
-    }
-
-    private val tick = object : Runnable {
-        override fun run() {
-            timerCell?.text = timerText()
-            if (ManualTimer.bookId != null) timerCell?.postDelayed(this, 30_000)
-        }
-    }
-
-    private val timerChanged: () -> Unit = {
-        if (_b != null) { timerCell?.removeCallbacks(tick); tick.run(); load() }
-    }
-
-    private fun toggleTimer(book: Book?) {
-        val ctx = requireContext()
-        when {
-            ManualTimer.bookId != null -> ManualTimer.stop(ctx)
-            book == null -> {
-                Toast.makeText(ctx, "Сначала добавьте книгу", Toast.LENGTH_SHORT).show()
-                BookActivity.create(ctx)
-            }
-            else -> {
-                ManualTimer.start(ctx, book.id)
-                Toast.makeText(ctx, ManualTimer.hint(), Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        ManualTimer.addListener(timerChanged)
-        tick.run()
-    }
-
-    override fun onStop() {
-        ManualTimer.removeListener(timerChanged)
-        timerCell?.removeCallbacks(tick)
-        super.onStop()
     }
 
     override fun onDestroyView() {

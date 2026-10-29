@@ -6,24 +6,20 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
 import android.util.AttributeSet
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.animation.OvershootInterpolator
 import android.widget.LinearLayout
 import androidx.appcompat.widget.AppCompatTextView
 import com.readingtracker.R
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
- * Нижнее меню: главная, книги, статистика словами, настройки — шестерёнкой.
- * Ч/б: линия сверху, выбранный пункт полужирный. Стекло: плавающая капсула,
- * под выбранным пунктом перетекает стеклянная линза. Чернила: выбранный пункт — чёрная плашка.
+ * Нижнее меню значками без подписей (подпись — только для озвучки): главная, книги,
+ * в середине круглая кнопка таймера, статистика, настройки.
+ * Ч/б: линия сверху. Стекло: плавающая капсула, под выбранным значком перетекает
+ * стеклянная линза. Чернила: выбранный значок — на чёрной плашке.
  */
 class RtNavBar @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
@@ -37,6 +33,9 @@ class RtNavBar @JvmOverloads constructor(
     private var selectedId = -1
     var onSelect: ((Int) -> Unit)? = null
 
+    /** Кнопка ручного таймера в середине меню. */
+    val timer = TimerButtonView(context, style)
+
     // Линза под выбранным пунктом: края в px, плавно перетекают
     private var lensL = 0f
     private var lensR = 0f
@@ -46,6 +45,8 @@ class RtNavBar @JvmOverloads constructor(
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         setWillNotDraw(false)
+        // Кнопка таймера чуть выступает над капсулой
+        clipToPadding = false
         when (style) {
             RtTheme.Style.GLASS -> {
                 setBackgroundColor(Color.TRANSPARENT)
@@ -55,16 +56,24 @@ class RtNavBar @JvmOverloads constructor(
         }
     }
 
-    /** iconIds — пункты, которые рисуются значком (шестерёнка), подпись уходит в описание. */
-    fun setItems(list: List<Pair<Int, String>>, iconIds: Set<Int> = emptySet()) {
+    /** Пункты меню значками; между второй и третьей парой встаёт кнопка таймера. */
+    fun setItems(list: List<Pair<Int, NavIcons.Kind>>, labels: Map<Int, String>) {
         removeAllViews(); items.clear()
-        for ((id, label) in list) {
-            val icon = id in iconIds
+        for ((i, pair) in list.withIndex()) {
+            val (id, kind) = pair
+            if (i == list.size / 2) {
+                val lp = LayoutParams(0, LayoutParams.MATCH_PARENT, 1.1f)
+                // Выступает над капсулой на высоту верхнего отступа
+                lp.topMargin = -paddingTop
+                addView(timer, lp)
+            }
             val v = NavItemView(context, style).apply {
-                if (icon) { gear = true; text = ""; contentDescription = label } else text = label
+                icon = kind
+                text = ""
+                contentDescription = labels[id] ?: ""
                 setOnClickListener { onSelect?.invoke(id) }
             }
-            addView(v, LayoutParams(0, LayoutParams.MATCH_PARENT, if (icon) 0.6f else 1f))
+            addView(v, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
             items += id to v
         }
     }
@@ -80,7 +89,7 @@ class RtNavBar @JvmOverloads constructor(
         val v = items.firstOrNull { it.first == selectedId }?.second ?: return null
         val tw = v.contentWidth()
         val cx = v.left + v.width / 2f
-        val half = tw / 2 + 16 * d
+        val half = tw / 2 + 12 * d
         return (cx - half) to (cx + half)
     }
 
@@ -170,41 +179,19 @@ class RtNavBar @JvmOverloads constructor(
 class NavItemView(context: Context, private val style: RtTheme.Style) : AppCompatTextView(context) {
 
     private val d = resources.displayMetrics.density
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val night = RtColors.isNight(context)
 
     var selectedItem = false
         set(value) { field = value; refresh() }
 
-    /** Пункт-значок: шестерёнка цвета текста. */
-    var gear = false
+    /** Значок пункта. */
+    var icon: NavIcons.Kind? = null
         set(value) { field = value; invalidate() }
 
-    private val gearPath: Path by lazy {
-        val p = Path()
-        val teeth = 8
-        val rOut = 9.6f; val rIn = 7.2f
-        for (i in 0 until teeth) {
-            val a = (2 * PI * i / teeth).toFloat()
-            val pts = listOf(rIn to a - 0.36f, rOut to a - 0.2f, rOut to a + 0.2f, rIn to a + 0.36f)
-            for ((k, pr) in pts.withIndex()) {
-                val x = pr.first * cos(pr.second); val y = pr.first * sin(pr.second)
-                if (i == 0 && k == 0) p.moveTo(x, y) else p.lineTo(x, y)
-            }
-            // дуга до следующего зуба
-            val next = (2 * PI * (i + 1) / teeth).toFloat() - 0.36f
-            var t = a + 0.36f
-            while (t < next) { p.lineTo(rIn * cos(t), rIn * sin(t)); t += 0.08f }
-        }
-        p.close()
-        p.addCircle(0f, 0f, 3.4f, Path.Direction.CCW)
-        p.fillType = Path.FillType.EVEN_ODD
-        p
-    }
+    private val iconSize get() = 32f * d
 
     init {
         gravity = Gravity.CENTER
-        // Размер в dp: меню всегда в одну строку, даже при крупном системном шрифте
-        setTextSize(TypedValue.COMPLEX_UNIT_DIP, if (style == RtTheme.Style.EINK) 17f else 14f)
         maxLines = 1
         isClickable = true
         isFocusable = true
@@ -212,20 +199,10 @@ class NavItemView(context: Context, private val style: RtTheme.Style) : AppCompa
         refresh()
     }
 
-    /** Ширина подписи или значка — по ней строится линза. */
-    fun contentWidth(): Float = if (gear) 20f * d
-        else paint.apply { textSize = this@NavItemView.textSize; typeface = this@NavItemView.typeface }.measureText(text.toString())
+    /** Ширина значка — по ней строится линза. */
+    fun contentWidth(): Float = iconSize * 0.9f
 
-    private fun refresh() {
-        typeface = if (selectedItem || isPressed) Fonts.semibold(context) else Fonts.regular(context)
-        val c = when {
-            style == RtTheme.Style.EINK -> if (selectedItem) Color.WHITE else Color.BLACK
-            selectedItem || isPressed -> RtColors.c(context, R.color.rt_ink)
-            else -> RtColors.c(context, R.color.rt_ink2)
-        }
-        setTextColor(c)
-        invalidate()
-    }
+    private fun refresh() { invalidate() }
 
     override fun drawableStateChanged() {
         super.drawableStateChanged()
@@ -233,14 +210,19 @@ class NavItemView(context: Context, private val style: RtTheme.Style) : AppCompa
         if (style == RtTheme.Style.GLASS) animate().scaleX(if (isPressed) 0.92f else 1f).scaleY(if (isPressed) 0.92f else 1f).setDuration(120).start()
     }
 
+    private fun colors(): NavIcons.Colors {
+        val active = selectedItem || isPressed
+        return when (style) {
+            RtTheme.Style.EINK -> NavIcons.outline(if (selectedItem) Color.WHITE else Color.BLACK)
+            RtTheme.Style.GLASS -> if (active) NavIcons.glassSelected(night) else NavIcons.outline(RtColors.c(context, R.color.rt_ink2))
+            RtTheme.Style.MONO -> if (active) NavIcons.monoSelected(RtColors.c(context, R.color.rt_ink))
+                else NavIcons.outline(RtColors.c(context, R.color.rt_ink2))
+        }
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        if (gear) {
-            canvas.save()
-            canvas.translate(width / 2f, height / 2f); canvas.scale(d, d)
-            paint.style = Paint.Style.FILL; paint.color = currentTextColor
-            canvas.drawPath(gearPath, paint)
-            canvas.restore()
-        }
+        val kind = icon ?: return
+        NavIcons.draw(canvas, kind, width / 2f, height / 2f, iconSize, colors())
     }
 }
