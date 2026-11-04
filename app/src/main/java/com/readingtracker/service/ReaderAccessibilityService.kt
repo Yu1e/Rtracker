@@ -170,6 +170,8 @@ class ReaderAccessibilityService : AccessibilityService() {
         if (title != null && ids(pkg, root, "propertymenu_read").isNotEmpty()) {
             val author = ids(pkg, root, "textView2").firstNotNullOfOrNull { it.desc() ?: it.str() }
             choose(pkg, title, author)
+            ids(pkg, root, "textView3").firstNotNullOfOrNull { it.desc() ?: it.str() }
+                ?.let { ReaderScreen.rememberGenres(this, title, it) }
         }
 
         // Библиотека: пары «название — автор» в одной строке списка
@@ -179,6 +181,8 @@ class ReaderAccessibilityService : AccessibilityService() {
             val parent = n.parent ?: continue
             val author = ids(pkg, parent, "textFileList3").firstNotNullOfOrNull { it.str() } ?: continue
             ReaderScreen.rememberAuthor(this, t, author)
+            ids(pkg, parent, "textFileList4").firstNotNullOfOrNull { it.str() }
+                ?.let { ReaderScreen.rememberGenres(this, t, it) }
         }
 
         // Окно «Проценты/Страницы»

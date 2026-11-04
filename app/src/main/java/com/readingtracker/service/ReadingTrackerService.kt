@@ -387,6 +387,8 @@ class ReadingTrackerService : Service() {
         if (!isScreenOn) return
         if (choosing == pkg) {
             // Книга выбирается: ни пузырька, ни значка, время не идёт
+            enteredAt = System.currentTimeMillis()
+            handledTitle = null
             pauseSession()
             overlay.hide()
             activeBookId = null
@@ -498,6 +500,10 @@ class ReadingTrackerService : Service() {
         clearUnassigned()
         scope.launch {
             val bookId = BookActions.addNewBook(this@ReadingTrackerService, title, author, pkg, appName)
+            // Жанры из читалки (AlReader), если трекер видел книгу в библиотеке
+            ReaderScreen.genresFor(this@ReadingTrackerService, title)?.let { g ->
+                db.bookDao().getBookById(bookId)?.takeIf { it.genres.isBlank() }?.let { db.bookDao().updateBook(it.copy(genres = g)) }
+            }
             for (p in pieces) {
                 db.sessionDao().insertSession(ReadingSession(bookId = bookId, startTime = p[0], endTime = p[1], appPackage = pkg))
                 accumulateTime(bookId, p[0], p[1])
@@ -566,7 +572,14 @@ class ReadingTrackerService : Service() {
      */
     private fun checkScreen() {
         val pkg = foregroundReadingApp ?: return
-        if (choosing == pkg) return
+        if (choosing == pkg) {
+            // Книга появилась на экране (или нажали «Читать») — выбор закончен, дальше обычный путь
+            val seen = ReaderScreen.title != null && ReaderScreen.titlePkg == pkg && ReaderScreen.titleAt >= enteredAt
+            if (!seen) return
+            endChoosing()
+            updateNotification()
+            startUnassigned(pkg, trackedApps[pkg] ?: pkg)
+        }
         val pagesAt = ReaderScreen.pagesAt
         if (pagesAt > pagesSeenAt && ReaderScreen.pagesPkg == pkg && pagesAt >= enteredAt) {
             pagesSeenAt = pagesAt

@@ -68,6 +68,36 @@ object ReaderScreen {
         return p.all.entries.firstOrNull { sameTitle(it.key, title) }?.value as? String
     }
 
+    // ── Жанры из читалки: название → наши жанры (через «|») ───────────────────
+
+    private fun gPrefs(c: Context) = c.applicationContext.getSharedPreferences("reader_genres", Context.MODE_PRIVATE)
+
+    /** Жанры AlReader («Фантастика, Фэнтэзи») → наши. Неясные (Проза, Приключения, Юмор…) пропускаются. */
+    private val GENRE_MAP = mapOf(
+        "фантастика" to "научная фантастика", "фэнтэзи" to "фэнтези", "фэнтези" to "фэнтези",
+        "история" to "историческая литература", "детективы" to "детектив и триллер",
+        "триллеры" to "детектив и триллер", "детское" to "детская", "поэзия" to "поэзия",
+        "драматургия" to "пьеса", "классика" to "классика", "биографии" to "биография и мемуары",
+        "мемуары" to "биография и мемуары", "научно-популярное" to "нон-фикшн", "публицистика" to "нон-фикшн"
+    )
+
+    fun rememberGenres(c: Context, title: String, raw: String) {
+        val key = normalize(title)
+        val mapped = raw.split(',', ' ').map { it.trim().lowercase().trimEnd('.') }.mapNotNull { GENRE_MAP[it] }.distinct()
+        if (key.isEmpty() || mapped.isEmpty()) return
+        val p = gPrefs(c)
+        if (p.all.size > 500) p.edit().clear().apply()
+        p.edit().putString(key, com.readingtracker.data.Book.joinGenres(mapped)).apply()
+    }
+
+    fun genresFor(c: Context, title: String): String? {
+        val p = gPrefs(c)
+        val key = normalize(title)
+        if (key.isEmpty()) return null
+        p.getString(key, null)?.let { return it }
+        return p.all.entries.firstOrNull { sameTitle(it.key, title) }?.value as? String
+    }
+
     /** Названия совпадают без учёта регистра, кавычек и многоточия в конце обрезанного названия. */
     fun sameTitle(a: String?, b: String?): Boolean {
         if (a == null || b == null) return false
