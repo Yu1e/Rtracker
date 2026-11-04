@@ -1,0 +1,58 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#d9d4ea;font-family:Rubik,system-ui,sans-serif;padding:24px;width:1560px}
+.row{display:flex;gap:24px;margin-bottom:28px;align-items:flex-start}
+.cap{font-size:15px;font-weight:600;color:#1E1838;margin:0 0 8px 4px}
+.ph{width:360px;border-radius:24px;padding:14px;background:radial-gradient(circle at 20% 20%,#3a2a8a 0,transparent 50%),radial-gradient(circle at 85% 80%,#6a1f55 0,transparent 45%),#0E0C1F;color:#F3F0FF;box-sizing:border-box}
+.card{background:#ffffff14;border:1px solid #ffffff2e;border-radius:18px;padding:12px 14px}
+.h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}.h b{font-size:16px}.h small{color:#BDB6E0;font-size:13px}
+.g{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.wd{font-size:11px;color:#8f88b8;text-align:center}
+.c{aspect-ratio:1;border-radius:8px;font-size:12px;display:flex;align-items:center;justify-content:center;color:#F3F0FF}
+.lg{display:flex;gap:6px;align-items:center;font-size:11px;color:#BDB6E0;margin-top:10px}.lg i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.note{font-size:12px;color:#BDB6E0;margin-top:8px}
+.rt{margin-top:6px}.lbl{font-size:13px;color:#BDB6E0;margin-bottom:6px}
+</style></head><body>
+<div class="row" id="cals"></div>
+<div class="row" id="rates"></div>
+<script>
+const mins={1:20,2:45,3:0,4:79,5:12,6:130,7:95,8:30,9:0,10:65,11:15,12:52,13:0,14:126,15:76,16:1,17:17,18:28,19:79,20:40,21:0,22:90,23:35,24:60,25:10,26:0,27:44,28:70,29:22,30:5};
+function lvl(m){return m<=0?0:m<15?1:m<30?2:m<60?3:4}
+const V=[
+ {t:"А. Фиолетовый, но контрастный: пустые дни — только контур, заполненные — от тёмно-лилового к розово-сиреневому, число на клетке",
+  c:["transparent","#4B2FB0","#7B5CFF","#B48CFF","#F0B8FF"],empty:"1.5px solid #ffffff38",dark:[0,0,0,1,1]},
+ {t:"Б. Тёплый янтарь — свет в витраже: дополнительный к фиолетовому, не сливается и не спорит",
+  c:["transparent","#6B4A1F","#B07A26","#F2B33D","#FFE08A"],empty:"1.5px solid #ffffff38",dark:[0,0,0,1,1]},
+ {t:"В. Витраж: каждый день — свой цвет стекла из палитры витража, яркость по минутам",
+  c:null,empty:"1.5px solid #ffffff38"}];
+const HOLO=["#9D7BFF","#FF3D9A","#2EE6FF","#FFD83A","#3DFFC8","#C94BFF","#4F8BFF","#FF6A3D"];
+function shade(hex,k){const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255,b=n&255;const f=[0,.35,.55,.8,1][k];return `rgba(${r},${g},${b},${f})`}
+let html='';
+V.forEach((v,vi)=>{let cells='';['пн','вт','ср','чт','пт','сб','вс'].forEach(d=>cells+=`<div class="wd">${d}</div>`);
+ for(let i=0;i<6;i++)cells+='<div></div>'; // 1 ноября 2026 — воскресенье
+ for(let d=1;d<=30;d++){const k=d<=5?lvl(mins[d]):-1;let st;
+  if(k<0)st=`border:1.5px dashed #ffffff30;color:#8f88b8`;
+  else if(k==0)st=`border:${v.empty};color:#BDB6E0`;
+  else if(v.c)st=`background:${v.c[k]};color:${v.dark[k]?'#1E1838':'#F3F0FF'}`;
+  else st=`background:${shade(HOLO[(d*5)%8],k)};color:${k>=3?'#1E1838':'#F3F0FF'};box-shadow:0 0 ${k*3}px ${HOLO[(d*5)%8]}66`;
+  if(d==5)st+=';outline:2px solid #F3F0FF;outline-offset:1px';
+  cells+=`<div class="c" style="${st}">${d}</div>`}
+ const lgc=v.c||["","#9D7BFF59","#FF3D9A8c","#2EE6FFcc","#FFD83A"];
+ html+=`<div><p class="cap" style="width:360px">${v.t}</p><div class="ph"><div class="card"><div class="h"><b>календарь</b><small>‹ ноябрь 2026 ›</small></div><div class="g">${cells}</div>
+ <div class="lg"><i style="border:1.5px solid #ffffff38"></i>не читалось<i style="background:${lgc[1]}"></i>&lt;15<i style="background:${lgc[2]}"></i>&lt;30<i style="background:${lgc[3]}"></i>&lt;60<i style="background:${lgc[4]}"></i>час+</div>
+ <div class="note">5 ноября, четверг: 1 ч 19 мин</div></div></div></div>`});
+document.getElementById('cals').innerHTML=html;
+
+// Оценка
+const r=8;let h2='';
+// 1. Полка из 10 корешков
+let sp='';const hs=[54,62,48,66,58,52,64,50,60,56],col=["#9D7BFF","#FF3D9A","#2EE6FF","#FFD83A","#3DFFC8","#C94BFF","#4F8BFF","#FF6A3D","#9D7BFF","#FF3D9A"];
+for(let i=0;i<10;i++){const on=i<r;sp+=`<div style="width:24px;height:${hs[i]}px;border-radius:3px 3px 1px 1px;${on?`background:linear-gradient(${col[i]},${col[i]}aa);box-shadow:0 0 8px ${col[i]}55`:'border:1.5px dashed #C9B6FF88'};display:flex;flex-direction:column;justify-content:space-around;align-items:center">${on?'<i style="width:16px;height:2px;background:#ffffff88"></i><i style="width:16px;height:2px;background:#ffffff88"></i>':''}</div>`}
+h2+=`<div><p class="cap" style="width:360px">1. Полка: тыц по корешку — столько книг встанет на полку. Пустые места — пунктир, как призраки</p><div class="ph"><div class="card"><div class="lbl">оценка</div><div style="display:flex;gap:4px;align-items:flex-end;border-bottom:3px solid #C9B6FF;padding-bottom:2px">${sp}</div><div style="display:flex;justify-content:space-between;margin-top:8px"><b style="font-size:26px">8</b><span style="color:#BDB6E0;font-size:13px;align-self:end">из 10</span></div></div></div></div>`;
+// 2. Ляссе с ромбиками
+let dm='';for(let i=0;i<10;i++){const on=i<r;dm+=`<div style="width:22px;height:22px;transform:rotate(45deg);border-radius:4px;${on?'background:#FFD83A;box-shadow:0 0 8px #FFD83A99':'border:1.5px solid #ffffff55'}"></div>`}
+h2+=`<div><p class="cap" style="width:360px">2. Ляссе: лента книги с ромбиками; тыц по ромбику — ромбики загораются до него, хвост ласточкой</p><div class="ph"><div class="card"><div class="lbl">оценка</div><div style="position:relative;height:46px;background:linear-gradient(90deg,#7B5CFF,#B04BE0);clip-path:polygon(0 0,100% 0,94% 50%,100% 100%,0 100%);border-radius:4px 0 0 4px;display:flex;align-items:center;gap:6px;padding-left:14px">${dm}</div><div style="display:flex;justify-content:space-between;margin-top:8px"><b style="font-size:26px">8</b><span style="color:#BDB6E0;font-size:13px;align-self:end">из 10</span></div></div></div></div>`;
+// 3. Розетка-витраж
+let pet='';for(let i=0;i<10;i++){const a=i*36-90,on=i<r;const x=Math.cos(a*Math.PI/180),y=Math.sin(a*Math.PI/180);
+ pet+=`<path d="M0 0 L${(Math.cos((a-17)*Math.PI/180)*80).toFixed(1)} ${(Math.sin((a-17)*Math.PI/180)*80).toFixed(1)} A80 80 0 0 1 ${(Math.cos((a+17)*Math.PI/180)*80).toFixed(1)} ${(Math.sin((a+17)*Math.PI/180)*80).toFixed(1)} Z" fill="${on?HOLO[i%8]:'#ffffff10'}" stroke="#0E0B1E" stroke-width="3" ${on?'filter="url(#gw)"':''}/>`}
+h2+=`<div><p class="cap" style="width:360px">3. Розетка-витраж: 10 лепестков, тыц по лепестку — витраж загорается до него; в центре число</p><div class="ph"><div class="card"><div class="lbl">оценка</div><div style="display:flex;justify-content:center"><svg width="190" height="190" viewBox="-95 -95 190 190"><defs><filter id="gw"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${pet}<circle r="28" fill="#1E1838" stroke="#0E0B1E" stroke-width="3"/><text y="9" text-anchor="middle" font-size="26" font-weight="700" fill="#F3F0FF">8</text><circle r="82" fill="none" stroke="#0E0B1E" stroke-width="4"/></svg></div></div></div></div>`;
+document.getElementById('rates').innerHTML=h2;
+</script></body></html>

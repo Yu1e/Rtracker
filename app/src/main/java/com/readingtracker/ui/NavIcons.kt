@@ -167,8 +167,9 @@ object NavIcons {
             }
             if (f != 0) { fill.color = f; canvas.drawPath(p, fill) }
             line(canvas, p, c.stroke, 1.2f)
-            stroke.color = if (c.filled) c.stroke else RtColors.withAlpha(c.stroke, .45f * Color.alpha(c.stroke) / 255f)
-            stroke.strokeWidth = .55f
+            // Внутренние линии долей: толще и плотнее, чтобы были видны и на цветном
+            stroke.color = if (c.filled) c.stroke else RtColors.withAlpha(c.stroke, .75f * Color.alpha(c.stroke) / 255f)
+            stroke.strokeWidth = 1.0f
             var a = a0 + 18f
             while (a < a1) {
                 val rad = Math.toRadians((a - 90f).toDouble())
