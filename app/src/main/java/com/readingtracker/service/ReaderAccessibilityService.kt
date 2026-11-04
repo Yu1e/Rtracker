@@ -94,7 +94,135 @@ class ReaderAccessibilityService : AccessibilityService() {
         try {
             scout(pkg, event)
         } catch (_: Exception) {}
-        if (tracked[pkg] == "ЛитРес") try { litres(pkg, event) } catch (_: Exception) {}
+        when (tracked[pkg]) {
+            "ЛитРес" -> try { litres(pkg, event) } catch (_: Exception) {}
+            "AlReader" -> try { alreader(pkg, event) } catch (_: Exception) {}
+            "Свет" -> try { svet(pkg, event) } catch (_: Exception) {}
+        }
+    }
+
+    private fun AccessibilityNodeInfo.str() = text?.toString()?.replace('\n', ' ')?.trim()?.takeIf { it.isNotEmpty() }
+    private fun AccessibilityNodeInfo.desc() = contentDescription?.toString()?.replace('\n', ' ')?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun ids(pkg: String, node: AccessibilityNodeInfo, name: String): List<AccessibilityNodeInfo> =
+        try { node.findAccessibilityNodeInfosByViewId("$pkg:id/$name") ?: emptyList() } catch (_: Exception) { emptyList() }
+
+    /** Текст события нажатия: подписи и описание. */
+    private fun clickText(event: AccessibilityEvent): String {
+        val src = try { event.source } catch (_: Exception) { null }
+        return listOfNotNull(
+            event.text?.joinToString(" ") { it?.toString() ?: "" },
+            event.contentDescription?.toString(),
+            src?.str(), src?.desc()
+        ).joinToString(" ").trim()
+    }
+
+    /** Книга, выбранная в библиотеке или карточке, — пока не нажали «Читать». */
+    private var chosenTitle: String? = null
+    private var chosenAuthor: String? = null
+    private var chosenPkg: String? = null
+    private var chosenAt = 0L
+
+    private fun choose(pkg: String, title: String, author: String?) {
+        chosenTitle = title; chosenAuthor = author; chosenPkg = pkg; chosenAt = System.currentTimeMillis()
+        if (author != null) ReaderScreen.rememberAuthor(this, title, author)
+    }
+
+    /** Нажали «Читать» — выбранная книга считается открытой на экране. */
+    private fun readPressed(pkg: String) {
+        val t = chosenTitle ?: return
+        if (chosenPkg != pkg || System.currentTimeMillis() - chosenAt > 10 * 60_000) return
+        ReaderScreen.seeTitle(pkg, t)
+        chosenTitle = null
+    }
+
+    private var screenAt = HashMap<String, Long>()
+
+    /** Содержимое экрана читаем не чаще раза в 1,2 с на читалку. */
+    private fun throttled(pkg: String): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - (screenAt[pkg] ?: 0L) < 1200) return true
+        screenAt[pkg] = now
+        return false
+    }
+
+    // ── AlReader (журнал разведки 1–4 ноября 2026) ───────────────────────────
+    // Экран чтения рисуется сам, текста на нём нет. Книга видна в библиотеке
+    // (textFileList0 desc — название прописными, textFileList3 — автор) и в «Свойствах»
+    // (textView1 desc — название, textView2 desc — автор), оттуда «Читать» (propertymenu_read).
+    // Страницы — в окне «Проценты/Страницы»: edittext2 — страница, text2 — «страница из 680».
+
+    private fun alreader(pkg: String, event: AccessibilityEvent) {
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            val src = event.source
+            val id = src?.viewIdResourceName?.substringAfter(":id/")
+            if (id == "propertymenu_read" || clickText(event).split(' ').any { it == "Читать" }) readPressed(pkg)
+            return
+        }
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+            event.eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED) return
+        if (throttled(pkg)) return
+        val root = rootInActiveWindow ?: return
+
+        // «Свойства» книги: название и автор в обычном написании
+        val title = ids(pkg, root, "textView1").firstNotNullOfOrNull { it.desc() ?: it.str() }
+        if (title != null && ids(pkg, root, "propertymenu_read").isNotEmpty()) {
+            val author = ids(pkg, root, "textView2").firstNotNullOfOrNull { it.desc() ?: it.str() }
+            choose(pkg, title, author)
+        }
+
+        // Библиотека: пары «название — автор» в одной строке списка
+        for (n in ids(pkg, root, "textFileList0").take(40)) {
+            val t = n.desc() ?: n.str() ?: continue
+            if (t == "..") continue
+            val parent = n.parent ?: continue
+            val author = ids(pkg, parent, "textFileList3").firstNotNullOfOrNull { it.str() } ?: continue
+            ReaderScreen.rememberAuthor(this, t, author)
+        }
+
+        // Окно «Проценты/Страницы»
+        val page = ids(pkg, root, "edittext2").firstNotNullOfOrNull { it.str() }
+        val of = ids(pkg, root, "text2").firstNotNullOfOrNull { it.str() }
+        if (page != null && of != null && of.contains("из")) ReaderScreen.seePages(pkg, "$page ${of.substringAfter("страница").trim()}")
+    }
+
+    // ── «Свет» (журнал разведки 3–4 ноября 2026) ─────────────────────────────
+    // Почти без id, всё в описаниях. Карточка книги: «16+», автор, название,
+    // «Примерная длительность чтения: …», «Читать». В читалке: navigation_textView — название
+    // (в оглавлении), current_page_text и total_pages_text — страницы.
+
+    private fun svet(pkg: String, event: AccessibilityEvent) {
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            if (clickText(event).split(' ').any { it == "Читать" }) readPressed(pkg)
+            return
+        }
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+            event.eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED) return
+        if (throttled(pkg)) return
+        val root = rootInActiveWindow ?: return
+
+        // Читалка: название из оглавления, страницы внизу
+        ids(pkg, root, "navigation_textView").firstNotNullOfOrNull { it.str() }?.let { ReaderScreen.seeTitle(pkg, it) }
+        val cur = ids(pkg, root, "current_page_text").firstNotNullOfOrNull { it.str() }
+        val total = ids(pkg, root, "total_pages_text").firstNotNullOfOrNull { it.str() }
+        if (cur != null && total != null) ReaderScreen.seePages(pkg, "$cur из $total")
+
+        // Карточка книги: два описания перед «Примерная длительность чтения»
+        val descs = mutableListOf<String>()
+        collectDescs(root, descs, 0)
+        val i = descs.indexOfFirst { it.startsWith("Примерная длительность") }
+        if (i >= 2) {
+            val t = descs[i - 1]; val a = descs[i - 2]
+            if (t.length in 1..200 && a.length in 2..80) choose(pkg, t, a)
+        }
+    }
+
+    private fun collectDescs(node: AccessibilityNodeInfo, out: MutableList<String>, depth: Int) {
+        if (out.size >= 120 || depth > 25) return
+        (node.desc() ?: node.str())?.let { out += it }
+        for (k in 0 until node.childCount) collectDescs(node.getChild(k) ?: continue, out, depth + 1)
     }
 
     // ── ЛитРес: название, страницы, автор ─────────────────────────────────────
@@ -109,28 +237,32 @@ class ReaderAccessibilityService : AccessibilityService() {
         if (now - litresAt < 1200) return
         litresAt = now
         val root = rootInActiveWindow ?: return
-        fun ids(node: AccessibilityNodeInfo, name: String): List<AccessibilityNodeInfo> =
-            try { node.findAccessibilityNodeInfosByViewId("$pkg:id/$name") ?: emptyList() } catch (_: Exception) { emptyList() }
-        fun AccessibilityNodeInfo.str() = text?.toString()?.replace('\n', ' ')?.trim()?.takeIf { it.isNotEmpty() }
 
         // Экран чтения и меню читалки
-        (ids(root, "book_name") + ids(root, "book_name_title")).firstNotNullOfOrNull { it.str() }
+        (ids(pkg, root, "book_name") + ids(pkg, root, "book_name_title")).firstNotNullOfOrNull { it.str() }
             ?.let { ReaderScreen.seeTitle(pkg, it) }
-        ids(root, "progress_text_progress").firstNotNullOfOrNull { it.str() }
+        ids(pkg, root, "progress_text_progress").firstNotNullOfOrNull { it.str() }
             ?.let { ReaderScreen.seePages(pkg, it) }
 
         // Библиотека и магазин: название и автор в одной карточке
-        for (n in ids(root, "textViewBookName").take(40)) {
+        for (n in ids(pkg, root, "textViewBookName").take(40)) {
             val t = n.str() ?: continue
             val parent = n.parent ?: continue
-            var author = ids(parent, "textViewAuthor").firstNotNullOfOrNull { it.str() }
+            var author = ids(pkg, parent, "textViewAuthor").firstNotNullOfOrNull { it.str() }
             if (author == null) {
                 // Карточка может быть на уровень выше; но не весь список, где книг много
                 val grand = parent.parent
-                if (grand != null && ids(grand, "textViewBookName").size == 1)
-                    author = ids(grand, "textViewAuthor").firstNotNullOfOrNull { it.str() }
+                if (grand != null && ids(pkg, grand, "textViewBookName").size == 1)
+                    author = ids(pkg, grand, "textViewAuthor").firstNotNullOfOrNull { it.str() }
             }
             if (author != null) ReaderScreen.rememberAuthor(this, t, author)
+        }
+        // Магазин: название и автор в карточке на главной вкладке
+        for (n in ids(pkg, root, "tv_book_title_resizable_view_main_tab").take(40)) {
+            val t = n.str() ?: continue
+            val parent = n.parent ?: continue
+            val author = ids(pkg, parent, "tv_author_name_resizable_book_main_tab").firstNotNullOfOrNull { it.str() } ?: continue
+            ReaderScreen.rememberAuthor(this, t, author)
         }
     }
 
@@ -148,6 +280,9 @@ class ReaderAccessibilityService : AccessibilityService() {
             }
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                // ЛитРес уже разобран и пишет на каждой странице — его изменения не забивают журнал,
+                // иначе записи других читалок вытесняются (журнал ограничен по размеру)
+                if (app == "ЛитРес" && event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
                 val now = System.currentTimeMillis()
                 if (now - (lastDumpAt[pkg] ?: 0) < 4000) return
                 val root = rootInActiveWindow ?: return

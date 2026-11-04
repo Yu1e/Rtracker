@@ -122,22 +122,23 @@ object Exporter {
 
     private fun oneLine(s: String) = s.replace(Regex("\\s*\\n\\s*"), " ").trim()
 
-    /** Поля книги по порядку: название поля → значение; жанр — несколько полей. */
+    /** Поля книги по порядку; пустые поля тоже выводятся: «(Автор:: )». Жанров может быть несколько. */
     private fun fields(b: Book, f: Set<BookField>, withTitle: Boolean): List<String> {
         val out = mutableListOf<String>()
+        fun field(name: String, value: String) { out += "($name:: ${oneLine(value)})" }
         if (BookField.MAIN in f) {
-            if (b.author.isNotBlank()) out += "(Автор:: ${oneLine(b.author)})"
-            if (withTitle && b.title.isNotBlank()) out += "(Название:: ${oneLine(b.title)})"
+            field("Автор", b.author)
+            if (withTitle) field("Название", b.title)
             val g = Book.splitGenres(b.genres)
-            if (g.isNotEmpty()) out += g.joinToString(", ") { "(Жанр:: $it)" }
+            if (g.isEmpty()) field("Жанр", "") else out += g.joinToString(", ") { "(Жанр:: $it)" }
         }
         if (BookField.STATUS in f) {
-            out += "(Статус:: ${statusWord(b.status)})"
-            out += "(Когда:: ${whenText(b)})"
+            field("Статус", statusWord(b.status))
+            field("Когда", whenText(b))
         }
-        if (BookField.TIME in f && b.totalMinutes > 0) out += "(Сколько:: ${formatMinutes(b.totalMinutes)})"
-        if (BookField.STATUS in f && b.appName.isNotBlank()) out += "(Источник:: ${b.appName})"
-        if (BookField.TIME in f) b.rating?.let { out += "(Оценка:: ${stars(it)} $it из 10)" }
+        if (BookField.TIME in f) field("Сколько", if (b.totalMinutes > 0) formatMinutes(b.totalMinutes) else "")
+        if (BookField.STATUS in f) field("Источник", b.appName)
+        if (BookField.TIME in f) field("Оценка", b.rating?.let { "${stars(it)} $it из 10" } ?: "")
         return out
     }
 
@@ -148,7 +149,7 @@ object Exporter {
             for (b in sorted) {
                 val name = oneLine(b.title).ifBlank { oneLine(b.author).ifBlank { "Без названия" } }
                 val parts = fields(b, job.fields, withTitle = false).toMutableList()
-                if (BookField.NOTES in job.fields && b.notes.isNotBlank()) parts += "(Заметки:: ${oneLine(b.notes)})"
+                if (BookField.NOTES in job.fields) parts += "(Заметки:: ${oneLine(b.notes)})"
                 body.append("- ").append(name)
                 if (parts.isNotEmpty()) body.append(' ').append(parts.joinToString(" "))
                 body.append("\n\n")
@@ -159,8 +160,9 @@ object Exporter {
         return sorted.map { b ->
             val body = StringBuilder()
             fields(b, job.fields, withTitle = true).forEach { body.append(it).append('\n') }
-            if (BookField.NOTES in job.fields && b.notes.isNotBlank()) {
-                body.append("\n##### Заметки\n").append(b.notes.trim()).append('\n')
+            if (BookField.NOTES in job.fields) {
+                body.append("\n##### Заметки\n")
+                if (b.notes.isNotBlank()) body.append(b.notes.trim()).append('\n')
             }
             OutFile(uniqueName(fileBase(b), used) + ".md", withTags(body.toString(), job))
         }
