@@ -1,0 +1,93 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#d9d4ea;font-family:Rubik,system-ui,sans-serif;color:#1E1838;padding:24px;display:flex;gap:28px;align-items:flex-start}
+.ph{width:360px;height:760px;border-radius:28px;overflow:hidden;position:relative;background:
+ radial-gradient(circle at 15% 20%,#e7dcff 0,transparent 45%),radial-gradient(circle at 85% 60%,#ffe0ef 0,transparent 40%),radial-gradient(circle at 30% 90%,#d8f6ef 0,transparent 40%),#F4F1FB;box-shadow:0 6px 24px #0003}
+.cap{font-size:14px;font-weight:600;margin:0 0 8px 4px;width:360px}
+.hd{position:absolute;top:0;left:0;right:0;z-index:2;background:#F4F1FBEE;border-bottom:1px solid #fff;padding:14px 14px 8px;box-shadow:0 4px 12px #6343F014}
+.t{display:flex;align-items:center;justify-content:space-between}
+.t b{font-size:22px}.ex{font-size:13px;border:1.5px solid #4F4870;border-radius:14px;padding:4px 10px}
+.nav{display:flex;gap:6px;margin-top:10px;overflow:hidden;white-space:nowrap}
+.nav span{font-size:13px;padding:5px 10px;border-radius:14px;background:#ffffff8c;border:1px solid #fff}
+.nav span.on{background:#6C4DF5;color:#fff;border-color:#6C4DF5}
+.fl{display:flex;gap:8px;white-space:nowrap;margin-top:9px;font-size:12px;color:#4F4870}
+.fl span{display:inline-flex;align-items:center}.fl i{flex:none;font-style:normal;display:inline-block;width:12px;height:12px;border:1.5px solid #4F4870;border-radius:3px;margin-right:4px;vertical-align:-2px;text-align:center;line-height:11px;font-size:10px}
+.fl i.x{background:#4F4870;color:#fff}
+.bd{position:absolute;top:128px;left:0;right:0;bottom:64px;padding:0 12px;overflow:hidden}
+.c{background:#ffffff8c;border:1px solid #fffc;border-radius:18px;padding:12px 14px;margin-bottom:10px}
+.c h3{margin:0 0 8px;font-size:15px;font-weight:600;display:flex;justify-content:space-between}
+.c h3 small{font-weight:400;color:#9A94B5;font-size:12px}
+.kv{display:flex;justify-content:space-between;font-size:13px;padding:2px 0}.kv b{font-weight:600}
+.big{display:flex;gap:8px}.big div{flex:1;background:#ffffffaa;border-radius:12px;padding:8px}.big small{display:block;font-size:11px;color:#4F4870}.big b{font-size:16px;white-space:nowrap}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.cal div{aspect-ratio:1;border-radius:5px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:70px}.bars div{flex:1;border-radius:3px 3px 1px 1px;background:#A58EFF}
+.nb{position:absolute;bottom:10px;left:40px;right:40px;height:46px;border-radius:23px;background:#ffffffb0;border:1px solid #fff;display:flex;justify-content:space-around;align-items:center;font-size:18px}
+.lg{display:flex;gap:6px;font-size:10px;color:#4F4870;margin-top:6px;align-items:center}.lg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.note{font-size:11px;color:#9A94B5;margin-top:4px}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:110px;background:#F4F1FB;border-radius:22px 22px 0 0;padding:16px;box-shadow:0 -6px 20px #0002}
+.sheet h4{margin:12px 0 6px;font-size:13px;color:#4F4870;font-weight:600}
+.seg{display:flex;flex-wrap:wrap;gap:6px}.seg span{font-size:13px;padding:5px 10px;border-radius:14px;border:1.5px solid #4F4870}.seg span.on{background:#1E1838;color:#fff;border-color:#1E1838}
+.ck{font-size:13px;padding:3px 0}
+.btn{margin-top:14px;background:#6C4DF5;color:#fff;text-align:center;border-radius:16px;padding:10px;font-weight:600}
+.dim{position:absolute;inset:0;background:#1E183855}
+</style></head><body>
+
+<div><p class="cap">1. Верх экрана. Шапка стоит на месте, разделы — карточками</p>
+<div class="ph"><div class="hd"><div class="t"><b>статистика</b><span class="ex">⤓ экспорт</span></div>
+<div class="nav"><span class="on">сводка</span><span>календарь</span><span>по дням</span><span>месяц</span><span>год</span><span>когда</span><span>книги</span></div>
+<div class="fl"><span><i class="x">✓</i>читаю</span><span><i class="x">✓</i>дочитаны</span><span><i class="x">✓</i>отложены</span><span><i class="x">✓</i>брошены</span></div></div>
+<div class="bd">
+<div class="c"><h3>сводка</h3><div class="big"><div><small>сегодня</small><b>47 мин</b></div><div><small>дней подряд</small><b>12</b></div><div><small>за ноябрь</small><b>6 ч 10 мин</b></div></div>
+<div class="kv" style="margin-top:8px"><span>дней подряд до 30</span><b>18</b></div></div>
+<div class="c"><h3>календарь <small>‹ октябрь 2026 ›</small></h3><div class="cal" style="font-size:10px;color:#9A94B5;margin-bottom:3px"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div><div class="cal" id="cal"></div>
+<div class="lg"><i style="background:#E3EEEE"></i>не читалось<i style="background:#BFF0E2"></i>&lt;15<i style="background:#7EE0C6"></i>&lt;30<i style="background:#3CC6A4"></i>&lt;60<i style="background:#14937C"></i>час+</div></div>
+<div class="c"><h3>минут по дням <small>30 дней</small></h3><div class="bars" id="bars"></div></div>
+</div><div class="nb">⌂ ▤ ⧖ ◔ ⚙</div></div></div>
+
+<div><p class="cap">2. Тыц по «книги» в шапке. Галочка «брошены» одна</p>
+<div class="ph"><div class="hd"><div class="t"><b>статистика</b><span class="ex">⤓ экспорт</span></div>
+<div class="nav"><span>месяц</span><span>год</span><span>когда</span><span class="on">книги</span><span>на книгу</span><span>рекорды</span><span>авторы</span></div>
+<div class="fl"><span><i>&nbsp;</i>читаю</span><span><i>&nbsp;</i>дочитаны</span><span><i>&nbsp;</i>отложены</span><span><i class="x">✓</i>брошены</span></div></div>
+<div class="bd">
+<div class="c"><h3>книги <small>только брошенные</small></h3>
+<div class="kv"><span>брошено всего</span><b>4</b></div><div class="kv"><span>в этом году</span><b>3</b></div><div class="kv"><span>время на них</span><b>9 ч 40 мин</b></div></div>
+<div class="c"><h3>брошенные</h3>
+<div class="kv"><span>бросается, медиана</span><b>на 11-й день</b></div><div class="kv"><span>прочитано до броска, медиана</span><b>23 %</b></div><div class="kv"><span>время до броска, медиана</span><b>1 ч 50 мин</b></div>
+<div class="kv"><span>чаще бросается в</span><b>Яндекс Книгах</b></div><div class="note">последние: «Улисс» · «Бесконечная шутка» · …</div></div>
+<div class="c"><h3>на одну книгу</h3><div class="kv"><span>время, медиана</span><b>2 ч 25 мин</b></div><div class="kv"><span>дней, медиана</span><b>11</b></div></div>
+<div class="c"><h3>жанры</h3><div class="kv"><span>роман</span><b>2</b></div><div class="kv"><span>нон-фикшн</span><b>1</b></div></div>
+</div><div class="nb">⌂ ▤ ⧖ ◔ ⚙</div></div></div>
+
+<div><p class="cap">3. «⤓ экспорт»: статистика или карточки книг</p>
+<div class="ph"><div class="hd"><div class="t"><b>статистика</b><span class="ex">⤓ экспорт</span></div></div><div class="dim"></div>
+<div class="sheet"><b style="font-size:17px">экспорт</b>
+<div class="seg" style="margin-top:10px"><span class="on">статистика</span><span>карточки книг</span></div>
+<h4>период</h4><div class="seg"><span>этот месяц</span><span class="on">месяц…</span><span>год…</span><span>всё время</span><span>с … по …</span></div>
+<div class="note">месяц… и год… — выбор из списка: октябрь 2026, сентябрь 2026…</div>
+<h4>что войдёт</h4>
+<div class="ck">☑ сводка и итоги</div><div class="ck">☑ день за днём (минуты)</div><div class="ck">☑ книги: время, статус, даты</div><div class="ck">☐ когда читаю (часы, дни недели)</div><div class="ck">☑ авторы, оценки, читалки</div><div class="ck">☐ сеансы подробно</div>
+<h4>какие книги</h4><div class="ck">☑ читаю ☑ дочитаны ☑ отложены ☑ брошены</div>
+<div class="btn">сохранить файл</div></div></div></div>
+
+<div><p class="cap">3а. Тот же экспорт, вкладка «карточки книг»</p>
+<div class="ph"><div class="hd"><div class="t"><b>статистика</b><span class="ex">⤓ экспорт</span></div></div><div class="dim"></div>
+<div class="sheet"><b style="font-size:17px">экспорт</b>
+<div class="seg" style="margin-top:10px"><span>статистика</span><span class="on">карточки книг</span></div>
+<h4>файлы</h4><div class="seg"><span class="on">все в один .md</span><span>каждая книга — свой .md</span></div>
+<h4>какие книги</h4><div class="ck">☑ читаю ☑ дочитаны ☑ отложены ☑ брошены</div>
+<h4>что в карточке</h4><div class="ck">☑ автор, название, жанр</div><div class="ck">☑ статус, даты, где читаю</div><div class="ck">☑ время, страницы, оценка</div><div class="ck">☑ заметки</div><div class="ck">☐ сеансы по дням</div>
+<h4>пример</h4><pre style="font-size:10.5px;background:#fff;border-radius:10px;padding:8px;margin:0;white-space:pre-wrap">## Булгаков — «Мастер и Маргарита»
+- статус: дочитана
+- жанр: роман
+- с 2 по 19 октября 2026, ЛитРес
+- время: 7 ч 12 мин, оценка: 9
+### заметки
+…</pre>
+<div class="btn">сохранить</div></div></div></div>
+
+<script>
+const cal=document.getElementById('cal'),c=['#E3EEEE','#BFF0E2','#7EE0C6','#3CC6A4','#14937C'];
+for(let i=0;i<3;i++)cal.innerHTML+='<div></div>';
+for(let d=1;d<=31;d++){const l=[0,2,3,1,4,3,2,0,4,3,2,1,3,4][d%14];cal.innerHTML+=`<div style="background:${d<=31?c[l]:'transparent'};${d<=31?'':'border:1.5px dashed #9A94B5'}${d==0?';outline:2px solid #1E1838;outline-offset:1px':''}"></div>`}
+const bars=document.getElementById('bars');
+for(let i=0;i<30;i++){const h=[20,60,35,80,10,0,45,70,90,30,55,25,65,40,85,15,50,75,35,60,20,95,45,30,70,55,40,80,25,47][i];bars.innerHTML+=`<div style="height:${Math.max(h,3)}%;${i==29?'outline:2px solid #14937C;outline-offset:2px;background:#6343F0':''}"></div>`}
+</script></body></html>
