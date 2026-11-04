@@ -60,9 +60,9 @@ class WeekBarsView @JvmOverloads constructor(
 
     private fun col(id: Int) = RtColors.c(context, id)
 
-    /** Рамка сегодняшнего дня: в стекле холодная мята, в ч/б и на чернилах — цвет текста. */
+    /** Рамка сегодняшнего дня: в стекле фиолетовая, в ч/б и на чернилах — цвет текста. */
     private fun todayColor(): Int =
-        if (glass) (if (RtColors.isNight(context)) 0xFF6FF0D0.toInt() else 0xFF14937C.toInt()) else col(R.color.rt_ink)
+        if (glass) (if (RtColors.isNight(context)) 0xFFC9B6FF.toInt() else 0xFF6343F0.toInt()) else col(R.color.rt_ink)
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)

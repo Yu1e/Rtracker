@@ -296,9 +296,9 @@ class StatsFragment : Fragment() {
 
         // Месяц
         card(SEC_MONTH, "этот месяц", note)
-        kv("время чтения", formatMinutes(s.monthMinutes) + compare(s.monthMinutes, s.prevMonthMinutes))
+        kv("время чтения", formatMinutes(s.monthMinutes))
         kv("дней с чтением", "${s.monthReadingDays}")
-        kv("книг дочитано", "${s.monthFinished}" + compareInt(s.monthFinished, s.prevMonthFinished))
+        kv("книг дочитано", "${s.monthFinished}")
         kv("книг начато", "${s.monthStarted}")
         kv("за эту неделю", formatMinutes(s.weekMinutes))
 
@@ -313,8 +313,8 @@ class StatsFragment : Fragment() {
         }
 
         card(SEC_YEAR, "год", note)
-        kv("дочитано в этом году", "${s.yearFinished}" + compareInt(s.yearFinished, s.prevYearFinished, "к прошлому году"))
-        kv("время в этом году", formatMinutes(s.yearMinutes) + compare(s.yearMinutes, s.prevYearMinutes, "к прошлому году"))
+        kv("дочитано в этом году", "${s.yearFinished}")
+        kv("время в этом году", formatMinutes(s.yearMinutes))
         kv("разных авторов в этом году", "${s.authorsThisYear}")
 
         // Когда читаю
@@ -475,7 +475,9 @@ class StatsFragment : Fragment() {
                 setPadding((10 * dp).toInt(), (8 * dp).toInt(), (10 * dp).toInt(), (8 * dp).toInt())
                 background = GradientDrawable().apply {
                     cornerRadius = 12 * dp
-                    setColor(RtColors.withAlpha(col(R.color.rt_tile), if (RtTheme.isEink(ctx)) 1f else 0.6f))
+                    // Плитка чуть темнее/светлее карточки, своей прозрачности цвета не трогаем
+                    setColor(if (RtTheme.isEink(ctx)) col(R.color.rt_tile)
+                        else RtColors.withAlpha(col(R.color.rt_ink), if (RtColors.isNight(ctx)) 0.10f else 0.06f))
                     if (RtTheme.isEink(ctx)) setStroke((1.5f * dp).toInt(), ink())
                 }
             }
@@ -565,26 +567,6 @@ class StatsFragment : Fragment() {
 
     private fun fmtDays(d: Double): String =
         if (d == d.toInt().toDouble()) "${d.toInt()}" else String.format(Locale("ru"), "%.1f", d)
-
-    private fun compare(cur: Long, prev: Long, what: String = "к прошлому месяцу"): String {
-        if (prev == 0L && cur == 0L) return ""
-        val diff = cur - prev
-        return when {
-            diff > 0 -> "  (+${formatMinutes(diff)} $what)"
-            diff < 0 -> "  (−${formatMinutes(-diff)} $what)"
-            else -> "  (как в прошлый раз)"
-        }
-    }
-
-    private fun compareInt(cur: Int, prev: Int, what: String = "к прошлому месяцу"): String {
-        if (prev == 0 && cur == 0) return ""
-        val diff = cur - prev
-        return when {
-            diff > 0 -> "  (+$diff $what)"
-            diff < 0 -> "  (−${-diff} $what)"
-            else -> "  (столько же)"
-        }
-    }
 
     override fun onDestroyView() {
         super.onDestroyView()

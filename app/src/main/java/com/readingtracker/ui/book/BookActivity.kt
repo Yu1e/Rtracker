@@ -146,6 +146,7 @@ class BookActivity : AppCompatActivity() {
     private fun showStatus(st: String) {
         status = st
         for ((tile, s) in tiles) tile.checked = s == st
+        updateDates()
     }
 
     /** Нажатие на плитку: рамка переходит, у сохранённой книги статус меняется сразу. */
@@ -212,7 +213,9 @@ class BookActivity : AppCompatActivity() {
 
     private fun updateDates() {
         b.btnStartDate.text = "Начата\n${fmt.format(Date(startDate))}"
-        b.btnEndDate.text = endDate?.let { "Закончена\n${fmt.format(Date(it))}" } ?: "Закончена\n—"
+        // Дата окончания — это дата, когда книга дочитана (у брошенной — когда брошена)
+        val word = if (status == Book.STATUS_ABANDONED) "Брошена" else "Дочитана"
+        b.btnEndDate.text = endDate?.let { "$word\n${fmt.format(Date(it))}" } ?: "$word\n—"
     }
 
     private fun pickDate(initial: Long, onPicked: (Long) -> Unit) {
@@ -226,15 +229,40 @@ class BookActivity : AppCompatActivity() {
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
     }
 
+    /** Дата «Дочитана»: книга, которая читалась или была отложена, сразу становится дочитанной. */
     private fun pickEndDate() {
         if (endDate == null) {
-            pickDate(System.currentTimeMillis()) { endDate = it; updateDates() }
+            pickDate(System.currentTimeMillis()) { setEnd(it) }
         } else {
             AlertDialog.Builder(this)
-                .setItems(arrayOf("Изменить дату", "Убрать дату окончания")) { _, which ->
-                    if (which == 0) pickDate(endDate!!) { endDate = it; updateDates() }
-                    else { endDate = null; updateDates() }
+                .setItems(arrayOf("Изменить дату", "Убрать дату")) { _, which ->
+                    if (which == 0) pickDate(endDate!!) { setEnd(it) }
+                    else {
+                        endDate = null
+                        // Без даты книга снова читается
+                        if (status == Book.STATUS_FINISHED) setStatusKeepingEnd(Book.STATUS_READING, null)
+                        updateDates()
+                    }
                 }.show()
+        }
+    }
+
+    private fun setEnd(date: Long) {
+        endDate = date
+        if (status == Book.STATUS_READING || status == Book.STATUS_PAUSED) setStatusKeepingEnd(Book.STATUS_FINISHED, date)
+        updateDates()
+    }
+
+    /** Статус меняется сразу (как плиткой), выбранная дата окончания сохраняется. */
+    private fun setStatusKeepingEnd(st: String, end: Long?) {
+        showStatus(st)
+        val id = book?.id ?: return
+        lifecycleScope.launch {
+            BookActions.setStatus(this@BookActivity, id, st)
+            val fresh = db.bookDao().getBookById(id) ?: return@launch
+            val fixed = fresh.copy(endDate = end)
+            db.bookDao().updateBook(fixed)
+            book = fixed
         }
     }
 

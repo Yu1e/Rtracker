@@ -123,7 +123,7 @@ class HomeFragment : Fragment() {
         if (d.pending > 0) {
             val start = count.length
             count.append("+${d.pending}")
-            count.setSpan(RelativeSizeSpan(0.44f), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            count.setSpan(RelativeSizeSpan(0.62f), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             count.setSpan(SuperscriptSpan(), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             // На тёмном фоне цифра после плюса светлая, иначе тёмное на тёмном
             val plusColor = when {
