@@ -46,7 +46,11 @@ data class Stats(
     val yearFinished: Int, val prevYearFinished: Int,
     val yearMinutes: Long, val prevYearMinutes: Long,
     val currentBook: Book?,
-    val booksById: Map<Long, Book>
+    val booksById: Map<Long, Book>,
+    /** Жанр, книг, минут — по убыванию книг. Книга с двумя жанрами считается в обоих. */
+    val genres: List<Triple<String, Int, Long>> = emptyList(),
+    val noGenre: Int = 0,
+    val abandoned: Abandoned = Abandoned()
 ) {
     fun chronotype(): String {
         val morning = (5..11).sumOf { hourMinutes[it] }
@@ -63,6 +67,22 @@ data class Stats(
         }
     }
 }
+
+/** Брошенные книги: когда и как бросаются. */
+data class Abandoned(
+    val count: Int = 0,
+    val yearCount: Int = 0,
+    val minutes: Long = 0,
+    /** На какой день книги (с начала) она бросается, медиана. */
+    val medianDay: Double? = null,
+    /** Сколько процентов прочитано до броска, медиана; только где известны страницы. */
+    val medianPercent: Int? = null,
+    val percentKnown: Int = 0,
+    val medianMinutes: Long? = null,
+    /** Читалка, где бросается чаще всего (если книг хотя бы две). */
+    val topApp: String? = null,
+    val recent: List<Book> = emptyList()
+)
 
 object StatsCalc {
 
@@ -204,7 +224,38 @@ object StatsCalc {
         val currentBook = lastSession?.let { booksById[it.bookId] }
             ?: books.filter { it.status == Book.STATUS_READING }.maxByOrNull { it.startDate }
 
+        // ── Жанры ─────────────────────────────────────────────────────────────
+        val genreAcc = LinkedHashMap<String, Pair<Int, Long>>()
+        for (b in books) for (g in Book.splitGenres(b.genres)) {
+            val (n, m) = genreAcc[g] ?: (0 to 0L)
+            genreAcc[g] = (n + 1) to (m + b.totalMinutes)
+        }
+        val genres = genreAcc.map { (g, v) -> Triple(g, v.first, v.second) }
+            .sortedWith(compareByDescending<Triple<String, Int, Long>> { it.second }.thenByDescending { it.third })
+        val noGenre = books.count { Book.splitGenres(it.genres).isEmpty() }
+
+        // ── Брошенные ─────────────────────────────────────────────────────────
+        val ab = books.filter { it.status == Book.STATUS_ABANDONED }
+        val abPercents = ab.filter { it.pagesTotal > 0 }
+            .map { (it.pagesRead * 100L / it.pagesTotal).coerceIn(0, 100) }
+        val abApp = ab.groupingBy { it.appName }.eachCount().entries
+            .filter { it.value >= 2 && it.key.isNotBlank() }.maxByOrNull { it.value }?.key
+        val abandoned = Abandoned(
+            count = ab.size,
+            yearCount = ab.count { inRange(it.endDate ?: it.startDate, yearStart, yearStart.plusYears(1)) },
+            minutes = ab.sumOf { it.totalMinutes },
+            medianDay = medianD(ab.map { BookActions.daysOnBook(it) }),
+            medianPercent = median(abPercents)?.toInt(),
+            percentKnown = abPercents.size,
+            medianMinutes = median(ab.filter { it.totalMinutes > 0 }.map { it.totalMinutes }),
+            topApp = abApp,
+            recent = ab.sortedByDescending { it.endDate ?: it.startDate }.take(3)
+        )
+
         return Stats(
+            genres = genres,
+            noGenre = noGenre,
+            abandoned = abandoned,
             today = today,
             dayMinutes = dayMin,
             todayMinutes = dayMin[today] ?: 0,

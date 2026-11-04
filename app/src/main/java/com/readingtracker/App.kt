@@ -42,9 +42,17 @@ class App : Application() {
             ).apply {
                 description = "Вопрос «Дочитана?» о книгах без статуса"
             }
+            val choose = NotificationChannel(
+                Constants.CHOOSE_CHANNEL_ID,
+                "Выбор книги",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Вопрос «считать время чтения?», пока трекер на паузе"
+            }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
             manager.createNotificationChannel(reminders)
+            manager.createNotificationChannel(choose)
         }
     }
 }

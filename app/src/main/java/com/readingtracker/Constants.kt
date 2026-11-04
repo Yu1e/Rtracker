@@ -72,12 +72,14 @@ object Constants {
             "AlReader" to pkgFor("AlReader", "com.neverland.alreader"),
             "Свет" to pkgFor("Свет", "ru.rsl.svetApp"),
             "Бумажная книга" to com.readingtracker.data.Book.PKG_PAPER,
+            "Онлайн" to com.readingtracker.data.Book.PKG_ONLINE,
             "Другое" to com.readingtracker.data.Book.PKG_OTHER
         )
     }
 
     const val NOTIFICATION_CHANNEL_ID = "reading_tracker_service"
     const val REMINDER_CHANNEL_ID = "reading_reminders"
+    const val CHOOSE_CHANNEL_ID = "reading_choose"
     const val NOTIFICATION_ID = 1001
 
     const val ABANDONED_DAYS_THRESHOLD = 21

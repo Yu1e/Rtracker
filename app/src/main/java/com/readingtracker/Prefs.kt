@@ -22,6 +22,30 @@ object Prefs {
         return if (id > 0 && System.currentTimeMillis() - time < 3 * 60_000) id else null
     }
 
+    /** Есть ли свежая книга-ожидание (не стирает её). */
+    fun hasPendingBook(c: Context, pkg: String): Boolean {
+        val prefs = p(c)
+        return prefs.getLong("pending_$pkg", -1) > 0 &&
+            System.currentTimeMillis() - prefs.getLong("pending_time_$pkg", 0) < 3 * 60_000
+    }
+
+    // Экран «оформление» при первом запуске показан
+    fun welcomed(c: Context): Boolean = p(c).getBoolean("welcomed", false)
+    fun setWelcomed(c: Context) { p(c).edit().putBoolean("welcomed", true).apply() }
+    /** Стиль уже выбирали (обновление со старой версии): первый экран не нужен. */
+    fun hasStyle(c: Context): Boolean = p(c).contains("style")
+
+    // Папка последнего экспорта: окно выбора открывается в ней
+    fun exportFolder(c: Context): Uri? = p(c).getString("export_folder", null)?.let { Uri.parse(it) }
+    fun setExportFolder(c: Context, uri: Uri) { p(c).edit().putString("export_folder", uri.toString()).apply() }
+
+    // Последние настройки экспорта
+    fun exportTags(c: Context): String = p(c).getString("export_tags", "") ?: ""
+    fun exportTagPlace(c: Context): String = p(c).getString("export_tag_place", "yaml") ?: "yaml"
+    fun setExportTags(c: Context, tags: String, place: String) {
+        p(c).edit().putString("export_tags", tags).putString("export_tag_place", place).apply()
+    }
+
     fun backupFolder(c: Context): Uri? =
         p(c).getString("backup_folder", null)?.let { Uri.parse(it) }
 

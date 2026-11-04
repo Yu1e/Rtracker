@@ -1,55 +1,14 @@
 package com.readingtracker.launcher
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.os.Bundle
-import android.provider.Settings
-import android.widget.Toast
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import com.readingtracker.Constants
 import com.readingtracker.MainActivity
-import com.readingtracker.diag.Diag
-import com.readingtracker.service.ReadingTrackerService
-
-/**
- * Ворота для читалок: трекер просыпается, потом открывается читалка.
- * Через них работают ярлыки на рабочем столе, кнопки в трекере, виджет и карточка книги.
- */
-class LaunchReaderActivity : Activity() {
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        val pkg = intent.getStringExtra(ReaderLauncher.EXTRA_PKG)
-        if (pkg == null) { finish(); return }
-
-        val launch = packageManager.getLaunchIntentForPackage(pkg)
-        if (launch == null) {
-            Toast.makeText(this, "Читалка не установлена", Toast.LENGTH_LONG).show()
-            finish(); return
-        }
-
-        // Без разрешений трекер не увидит чтение — отправляем в настройку, но книгу всё равно открываем
-        val ready = Diag.hasUsageAccess(this) && Settings.canDrawOverlays(this)
-        if (ready) {
-            try {
-                ReadingTrackerService.startForReader(this, pkg)
-            } catch (e: Exception) {
-                Diag.set(this, Diag.ERROR, "${Diag.time()} запуск службы: $e")
-            }
-        } else {
-            Toast.makeText(this, "Трекер не настроен: откройте его и дайте разрешения", Toast.LENGTH_LONG).show()
-        }
-        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(launch)
-        finish()
-        overridePendingTransition(0, 0)
-    }
-}
 
 object ReaderLauncher {
     const val EXTRA_PKG = "reader_pkg"

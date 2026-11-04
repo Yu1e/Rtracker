@@ -46,7 +46,8 @@ class HomeEinkFragment : Fragment() {
         }
         b.btnTimer.setOnClickListener { toggleTimer() }
         // «сегодня за книгой» ведёт на статистику
-        (b.ring.parent as? View)?.setOnClickListener { (activity as? com.readingtracker.MainActivity)?.goTo(2) }
+        (b.ring.parent as? View)?.setOnClickListener { (activity as? com.readingtracker.MainActivity)?.goToStats(com.readingtracker.ui.stats.StatsFragment.SEC_SUMMARY) }
+        b.weekBars.setOnClickListener { (activity as? com.readingtracker.MainActivity)?.goToStats(com.readingtracker.ui.stats.StatsFragment.SEC_DAYS) }
     }
 
     override fun onResume() {
@@ -95,7 +96,7 @@ class HomeEinkFragment : Fragment() {
             b.tvBookTime.text = "за книгой ${HomeFragment.formatHM(d.bookMinutes)}$more"
             b.tvBookTime.visibility = View.VISIBLE
         } else {
-            b.tvTitle.text = "здесь появится книга, которую вы читаете"
+            b.tvTitle.text = "здесь появится книга, которую ты читаешь"
             b.tvAuthor.visibility = View.GONE
             b.tvBookTime.visibility = View.GONE
         }

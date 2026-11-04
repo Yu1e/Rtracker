@@ -29,7 +29,7 @@ class StatusPrompt(private val activity: AppCompatActivity) {
 
     private fun show(book: Book) {
         showing = true
-        val reason = if (book.needsStatusCheck) "Вы начали новую книгу."
+        val reason = if (book.needsStatusCheck) "Начата новая книга."
         else "Книга начата ${BookActions.daysOnBook(book)} дн. назад."
         val items = arrayOf("Дочитана", "Брошена", "Отложена", "Открыть карточку книги", "Спросить через неделю")
 

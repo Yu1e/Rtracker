@@ -94,6 +94,21 @@
             android:taskAffinity=""
             android:launchMode="singleInstance" />
 
+        <!-- Первый запуск: выбор оформления -->
+        <activity
+            android:name=".ui.welcome.WelcomeActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+
+        <!-- Ответ «Считать» из уведомления паузы: закрывает шторку, форма — поверх читалки -->
+        <activity
+            android:name=".service.ChooseAnswerActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="" />
+
         <activity
             android:name=".ui.book.BookActivity"
             android:exported="false"

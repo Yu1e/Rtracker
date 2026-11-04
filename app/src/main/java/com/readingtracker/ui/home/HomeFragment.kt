@@ -40,6 +40,7 @@ class HomeFragment : Fragment() {
     private var _b: FragmentHomeBinding? = null
     private val b get() = _b!!
     private var data: HomeData? = null
+    private var launching = false
 
     override fun onCreateView(i: LayoutInflater, c: ViewGroup?, s: Bundle?): View {
         _b = FragmentHomeBinding.inflate(i, c, false)
@@ -53,7 +54,9 @@ class HomeFragment : Fragment() {
         b.shelf.reshuffle()
         b.streakGlass.reshuffle()
         // «сегодня за книгой» ведёт на статистику
-        b.ringTile.setOnClickListener { (activity as? com.readingtracker.MainActivity)?.goTo(2) }
+        b.ringTile.setOnClickListener { (activity as? com.readingtracker.MainActivity)?.goToStats(com.readingtracker.ui.stats.StatsFragment.SEC_SUMMARY) }
+        // Столбики недели — в раздел «по дням»
+        b.weekBars.setOnClickListener { (activity as? com.readingtracker.MainActivity)?.goToStats(com.readingtracker.ui.stats.StatsFragment.SEC_DAYS) }
 
         b.bookCover.setOnClickListener {
             val book = data?.book
@@ -111,7 +114,7 @@ class HomeFragment : Fragment() {
             b.bookCover.setBooks(items, formatHM(d.bookMinutes), d.bricks, progress)
         } else {
             Ribbons.setCurrent(ctx, Ribbons.fallback)
-            b.bookCover.setEmpty("здесь появится книга, которую вы читаете")
+            b.bookCover.setEmpty("здесь появится книга, которую ты читаешь")
         }
 
         // Полка
@@ -122,7 +125,13 @@ class HomeFragment : Fragment() {
             count.append("+${d.pending}")
             count.setSpan(RelativeSizeSpan(0.44f), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             count.setSpan(SuperscriptSpan(), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            count.setSpan(ForegroundColorSpan(col(R.color.rt_ink3)), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            // На тёмном фоне цифра после плюса светлая, иначе тёмное на тёмном
+            val plusColor = when {
+                !RtColors.isNight(ctx) -> col(R.color.rt_ink3)
+                RtTheme.isGlass(ctx) -> 0xFFC9B6FF.toInt()
+                else -> col(R.color.rt_ink2)
+            }
+            count.setSpan(ForegroundColorSpan(plusColor), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
         b.tvMonthCount.text = count
         b.shelf.set(d.finishedThisMonth.map { it.id }, d.ghosts)
@@ -136,9 +145,15 @@ class HomeFragment : Fragment() {
         b.btnRead.setOnClickListener {
             if (readPkg == null) {
                 Toast.makeText(ctx, "Читалки не найдены", Toast.LENGTH_SHORT).show()
-            } else {
-                if (book != null && book.appPackage == readPkg) Prefs.setPendingBook(ctx, readPkg, book.id)
-                ReaderLauncher.open(ctx, readPkg)
+            } else if (!launching) {
+                // Эффект успевает доиграть: читалка открывается через 0,8 с
+                launching = true
+                val delay = if (RtTheme.motion(ctx)) READ_DELAY_MS else 0L
+                b.btnRead.postDelayed({
+                    launching = false
+                    if (book != null && book.appPackage == readPkg) Prefs.setPendingBook(ctx, readPkg, book.id)
+                    ReaderLauncher.open(ctx, readPkg)
+                }, delay)
             }
         }
         buildReaders(readers.map { it.key to it.value })
@@ -198,6 +213,7 @@ class HomeFragment : Fragment() {
     }
 
     companion object {
+        private const val READ_DELAY_MS = 800L
         private val MONTHS_GEN = arrayOf(
             "января", "февраля", "марта", "апреля", "мая", "июня",
             "июля", "августа", "сентября", "октября", "ноября", "декабря"

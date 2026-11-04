@@ -136,6 +136,8 @@ class StainedGlassView @JvmOverloads constructor(
             val b = cell.bounds
             if (on) {
                 val (a, bright) = colorsFor(cell, i)
+                // Кисть непрозрачная: иначе прозрачность пустого осколка с прошлого кадра гасит горящие
+                fill.color = Color.WHITE
                 fill.shader = RadialGradient(
                     b.left + b.width() * 0.4f, b.top + b.height() * 0.35f, max(b.width(), b.height()) * 0.8f,
                     intArrayOf(Color.argb(242, 255, 255, 255), bright, a), floatArrayOf(0f, 0.3f, 1f), Shader.TileMode.CLAMP

@@ -46,6 +46,7 @@ class BookActivity : AppCompatActivity() {
     private var endDate: Long? = null
     private lateinit var sources: List<Pair<String, String>>
     private var status = Book.STATUS_READING
+    private var genres = mutableListOf<String>()
     private val tiles by lazy {
         listOf(b.stReading to Book.STATUS_READING, b.stFinished to Book.STATUS_FINISHED,
             b.stPaused to Book.STATUS_PAUSED, b.stAbandoned to Book.STATUS_ABANDONED)
@@ -65,6 +66,8 @@ class BookActivity : AppCompatActivity() {
         b.btnStartDate.setOnClickListener { pickDate(startDate) { startDate = it; updateDates() } }
         b.btnEndDate.setOnClickListener { pickEndDate() }
         b.btnSave.setOnClickListener { save() }
+        b.tvGenres.setOnClickListener { pickGenres() }
+        updateGenres()
         for ((tile, st) in tiles) {
             tile.status = st
             tile.setOnClickListener { pickStatus(st) }
@@ -122,6 +125,8 @@ class BookActivity : AppCompatActivity() {
             b.slRating.value = (bk.rating ?: 0).toFloat()
             updateRatingLabel(bk.rating ?: 0)
             b.etNotes.setText(bk.notes)
+            genres = Book.splitGenres(bk.genres).toMutableList()
+            updateGenres()
 
             showBookStats(bk)
 
@@ -180,6 +185,27 @@ class BookActivity : AppCompatActivity() {
         b.tvBookStats.visibility = View.VISIBLE
     }
 
+    private fun updateGenres() {
+        b.tvGenres.text = if (genres.isEmpty()) "не указан  ▾" else genres.joinToString(", ") + "  ▾"
+    }
+
+    /** Жанры галочками: у книги их может быть несколько. */
+    private fun pickGenres() {
+        val all = Book.GENRES
+        val checked = BooleanArray(all.size) { all[it] in genres }
+        AlertDialog.Builder(this)
+            .setTitle("Жанр")
+            .setMultiChoiceItems(all.toTypedArray(), checked) { _, which, on -> checked[which] = on }
+            .setPositiveButton("Готово") { _, _ ->
+                // Жанры не из списка (если появятся) сохраняются
+                val extra = genres.filter { it !in all }
+                genres = (all.filterIndexed { i, _ -> checked[i] } + extra).toMutableList()
+                updateGenres()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
     private fun updateRatingLabel(v: Int) {
         b.tvRating.text = if (v == 0) "Оценка: без оценки" else "Оценка: $v из 10"
     }
@@ -216,7 +242,7 @@ class BookActivity : AppCompatActivity() {
         val title = b.etTitle.text.toString().trim()
         val author = b.etAuthor.text.toString().trim()
         if (title.isEmpty() && author.isEmpty()) {
-            b.etTitle.error = "Заполните название или автора"
+            b.etTitle.error = "Заполни название или автора"
             return
         }
         val source = sources[b.spSource.selectedItemPosition.coerceAtLeast(0)]
@@ -232,7 +258,8 @@ class BookActivity : AppCompatActivity() {
             startDate = startDate,
             endDate = endDate,
             rating = rating,
-            notes = notes
+            notes = notes,
+            genres = Book.joinGenres(genres)
         ).let { bk ->
             if (b.manualTimeBlock.visibility != View.VISIBLE) bk
             else {

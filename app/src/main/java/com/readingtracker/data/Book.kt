@@ -30,7 +30,9 @@ data class Book(
     /** Страница, на которой книга открыта в читалке («158 из 1329»); 0 — неизвестно. */
     val pagesRead: Int = 0,
     /** Всего страниц; 0 — неизвестно. */
-    val pagesTotal: Int = 0
+    val pagesTotal: Int = 0,
+    /** Жанры через «|» в порядке списка Book.GENRES; пусто — не указан. */
+    val genres: String = ""
 ) {
     companion object {
         const val STATUS_READING = "reading"
@@ -40,6 +42,20 @@ data class Book(
 
         const val PKG_PAPER = "paper"
         const val PKG_OTHER = "other"
+        const val PKG_ONLINE = "online"
+
+        /** Основные жанры, без распыления. У книги их может быть несколько. */
+        val GENRES = listOf(
+            "классика", "современная проза", "детектив и триллер", "научная фантастика", "фэнтези",
+            "историческая литература", "нон-фикшн", "биография и мемуары", "поэзия", "пьеса", "эпос",
+            "детская", "другое"
+        )
+
+        fun splitGenres(s: String): List<String> = s.split('|').map { it.trim() }.filter { it.isNotEmpty() }
+
+        /** Жанры в порядке общего списка, без повторов. */
+        fun joinGenres(list: Collection<String>): String =
+            list.distinct().sortedBy { GENRES.indexOf(it).let { i -> if (i < 0) Int.MAX_VALUE else i } }.joinToString("|")
 
         fun statusLabel(status: String) = when (status) {
             STATUS_READING -> "Читаю"

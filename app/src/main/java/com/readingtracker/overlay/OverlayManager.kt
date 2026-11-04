@@ -122,7 +122,7 @@ class OverlayManager(private val context: Context) {
             val author = etAuthor.text.toString().trim()
             // Достаточно любого одного поля
             if (title.isEmpty() && author.isEmpty()) {
-                etTitle.error = "Заполните название или автора"
+                etTitle.error = "Заполни название или автора"
                 return@setOnClickListener
             }
             hideKeyboard(etTitle)

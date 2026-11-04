@@ -50,6 +50,12 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         RtTheme.apply(this)
         super.onCreate(savedInstanceState)
+        // Первый запуск после установки — сначала выбор оформления
+        if (com.readingtracker.ui.welcome.WelcomeActivity.needed(this)) {
+            startActivity(Intent(this, com.readingtracker.ui.welcome.WelcomeActivity::class.java))
+            finish()
+            return
+        }
         com.readingtracker.ui.home.Ribbons.restore(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -134,13 +140,22 @@ class MainActivity : AppCompatActivity() {
                 HomeData.compute(db.bookDao().getAllBooksSync(), db.sessionDao().getAllSessions()).book
             }
             if (book == null) {
-                Toast.makeText(this@MainActivity, "Сначала добавьте книгу", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, "Сначала добавь книгу", Toast.LENGTH_SHORT).show()
                 BookActivity.create(this@MainActivity)
             } else {
                 ManualTimer.start(this@MainActivity, book.id)
                 Toast.makeText(this@MainActivity, ManualTimer.hint(), Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    /** Статистика, сразу на нужном разделе. */
+    fun goToStats(section: String) {
+        StatsFragment.pendingSection = section
+        if (binding.pager.currentItem % TABS == 2) {
+            // Уже на статистике — просто прокрутить
+            supportFragmentManager.fragments.filterIsInstance<StatsFragment>().forEach { it.scrollToPending() }
+        } else goTo(2)
     }
 
     /** Переход к экрану кратчайшим путём по кругу, со сдвигом. */
@@ -194,8 +209,8 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Нужно разрешение")
             .setMessage(
                 "Приложению нужен доступ к статистике использования, " +
-                "чтобы понять, когда вы открываете читалку.\n\n" +
-                "В следующем экране найдите «Трекер чтения» и включите переключатель."
+                "чтобы понять, когда ты открываешь читалку.\n\n" +
+                "В следующем экране найди «Трекер чтения» и включи переключатель."
             )
             .setPositiveButton("Открыть настройки") { _, _ ->
                 startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
@@ -210,7 +225,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage(
                 "Приложению нужно разрешение «Поверх других приложений», " +
                 "чтобы показывать пузырёк при открытии читалки.\n\n" +
-                "Включите переключатель на следующем экране."
+                "Включи переключатель на следующем экране."
             )
             .setPositiveButton("Открыть настройки") { _, _ ->
                 startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,

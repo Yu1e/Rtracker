@@ -122,9 +122,9 @@ class ReadButtonView @JvmOverloads constructor(
         if (effect == Effect.DROP && motion) {
             // Капля: под пальцем сплющивается и растекается вширь, отпустили — подпрыгивает
             pivotY = height.toFloat()
-            if (isPressed) animate().scaleX(1.06f).scaleY(0.86f).setDuration(120).setInterpolator(null).start()
-            else animate().scaleX(0.95f).scaleY(1.08f).setDuration(140).setInterpolator(null).withEndAction {
-                animate().scaleX(1f).scaleY(1f).setDuration(360).setInterpolator(OvershootInterpolator(2.6f)).start()
+            if (isPressed) animate().scaleX(1.06f).scaleY(0.86f).setDuration(180).setInterpolator(null).start()
+            else animate().scaleX(0.95f).scaleY(1.08f).setDuration(220).setInterpolator(null).withEndAction {
+                animate().scaleX(1f).scaleY(1f).setDuration(560).setInterpolator(OvershootInterpolator(2.6f)).start()
             }.start()
         } else {
             pivotY = height / 2f
@@ -176,7 +176,7 @@ class ReadButtonView @JvmOverloads constructor(
     /** Оттенок капсулы сейчас: во время эффекта перетекает к новому. */
     private fun currentHue(): Float {
         if (hueStart == 0L) return hueShift
-        val t = ((SystemClock.uptimeMillis() - hueStart) / 600f).coerceIn(0f, 1f)
+        val t = ((SystemClock.uptimeMillis() - hueStart) / 900f).coerceIn(0f, 1f)
         if (t >= 1f) { hueStart = 0L; return hueShift }
         var delta = hueShift - hueFrom
         if (delta < 0) delta += 360f
@@ -270,7 +270,7 @@ class ReadButtonView @JvmOverloads constructor(
                 var alive = false
                 fx.style = Paint.Style.STROKE; fx.shader = null
                 for (i in 0 until 3) {
-                    val t = ((ms - i * 110) / 650f)
+                    val t = ((ms - i * 170) / 1000f)
                     if (t < 0f) { alive = true; continue }
                     if (t > 1f) continue
                     alive = true
@@ -303,7 +303,7 @@ class ReadButtonView @JvmOverloads constructor(
             }
             Effect.DROP -> {
                 // Цвет перетекает: светлая волна поднимается снизу вверх
-                val t = effectT(600f)
+                val t = effectT(950f)
                 if (t >= 1f) { effect = null; return }
                 val y = h * (1 - t)
                 fx.style = Paint.Style.FILL
@@ -342,7 +342,7 @@ class ReadButtonView @JvmOverloads constructor(
     }
 
     companion object {
-        private const val MATTRESS_MS = 1100f
+        private const val MATTRESS_MS = 1700f
 
         /** Сдвиг оттенка капсулы между открытиями экрана сохраняется. */
         private var hueShift = 0f
@@ -373,7 +373,7 @@ private class BurstDrawable(
 
     override fun draw(canvas: Canvas) {
         val ms = SystemClock.uptimeMillis() - start
-        val dur = if (kind == ReadButtonView.Effect.FAN) 800f else 950f
+        val dur = if (kind == ReadButtonView.Effect.FAN) 1250f else 1450f
         val t = ms / dur
         if (t >= 1f) {
             if (!finished) { finished = true; scheduleSelf({ onDone?.invoke() }, SystemClock.uptimeMillis()) }

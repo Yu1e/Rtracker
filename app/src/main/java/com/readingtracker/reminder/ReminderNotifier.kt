@@ -62,9 +62,9 @@ object ReminderNotifier {
             .setContentIntent(open)
             .setAutoCancel(true)
             .setDeleteIntent(action(StatusActionReceiver.LATER, 0))
-            .addAction(0, "Дочитала", action(Book.STATUS_FINISHED, 1))
-            .addAction(0, "Бросила", action(Book.STATUS_ABANDONED, 2))
-            .addAction(0, "Отложила", action(Book.STATUS_PAUSED, 3))
+            .addAction(0, "Дочитана", action(Book.STATUS_FINISHED, 1))
+            .addAction(0, "Брошена", action(Book.STATUS_ABANDONED, 2))
+            .addAction(0, "Отложена", action(Book.STATUS_PAUSED, 3))
             .build()
         return try {
             nm.notify(id, n)

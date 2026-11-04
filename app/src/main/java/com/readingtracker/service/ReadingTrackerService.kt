@@ -34,14 +34,31 @@ class ReadingTrackerService : Service() {
         /** Ручной таймер на паузе дольше этого — останавливается. */
         const val MANUAL_GIVE_UP_MS = 20 * 60_000L
 
+        /** Пауза «ещё выбираю»: вопрос «считать?» приходит через столько времени. */
+        const val CHOOSE_EVERY_MS = 5 * 60_000L
+
         const val EXTRA_READER_PKG = "reader_pkg"
+        const val EXTRA_CHOOSING = "choosing"
         const val EXTRA_MANUAL_BOOK = "manual_book"
         const val ACTION_STOP_MANUAL = "com.readingtracker.STOP_MANUAL"
+        const val ACTION_CHOOSE_COUNT = "com.readingtracker.CHOOSE_COUNT"
+        const val ACTION_CHOOSE_LATER = "com.readingtracker.CHOOSE_LATER"
+        const val CHOOSE_NOTIFICATION_ID = 1002
 
-        /** Запуск службы на время чтения. Вызывается из ярлыка/кнопки читалки. */
-        fun startForReader(context: Context, pkg: String) {
-            val i = Intent(context, ReadingTrackerService::class.java).putExtra(EXTRA_READER_PKG, pkg)
+        /**
+         * Запуск службы на время чтения. Вызывается из ярлыка/кнопки читалки.
+         * choosing — «Остановить трекер»: читалка открыта, время не идёт, пока книга выбирается.
+         */
+        fun startForReader(context: Context, pkg: String, choosing: Boolean = false) {
+            val i = Intent(context, ReadingTrackerService::class.java)
+                .putExtra(EXTRA_READER_PKG, pkg)
+                .putExtra(EXTRA_CHOOSING, choosing)
             context.startForegroundService(i)
+        }
+
+        /** Ответ на вопрос «считать?» из уведомления. */
+        fun sendChoose(context: Context, action: String) {
+            context.startForegroundService(Intent(context, ReadingTrackerService::class.java).setAction(action))
         }
     }
 
@@ -82,6 +99,10 @@ class ReadingTrackerService : Service() {
     private var askedAutomatically = false
     private var formOpen = false
     private val autoAsk = Runnable { if (unassignedPkg != null && !formOpen) openForm() }
+
+    // Пауза «ещё выбираю»: читалка, в которой выбирают книгу; время не идёт
+    private var choosing: String? = null
+    private val chooseAsk = Runnable { postChooseQuestion() }
 
     // Ручной таймер
     private var manual = false
@@ -164,6 +185,13 @@ class ReadingTrackerService : Service() {
             stopManual("остановлен вручную")
             return START_NOT_STICKY
         }
+        if (intent?.action == ACTION_CHOOSE_COUNT || intent?.action == ACTION_CHOOSE_LATER) {
+            if (intent?.action == ACTION_CHOOSE_COUNT) chooseCount() else chooseLater()
+            // Служба проснулась только ради ответа, а чтения нет — выгружаемся
+            if (choosing == null && foregroundReadingApp == null && !manual && startedFor == null) stopSelf()
+            else { handler.removeCallbacks(pollRunnable); handler.post(pollRunnable) }
+            return START_NOT_STICKY
+        }
         val manualBook = intent?.getLongExtra(EXTRA_MANUAL_BOOK, -1L) ?: -1L
         val pkg = intent?.getStringExtra(EXTRA_READER_PKG)
         if (manualBook > 0) {
@@ -176,6 +204,13 @@ class ReadingTrackerService : Service() {
             outsideSince = 0L
             lastEventTime = System.currentTimeMillis() - 5_000
             if (pkg !in trackedApps) trackedApps = trackedApps + (pkg to (Constants.detectTrackedApps(this)[pkg] ?: pkg))
+            if (intent?.getBooleanExtra(EXTRA_CHOOSING, false) == true) startChoosing(pkg)
+            else if (choosing != null) {
+                // «Время чтения пошло»: пауза кончилась, вход в читалку распознаётся заново
+                endChoosing()
+                foregroundReadingApp = null
+                updateNotification()
+            }
         }
         handler.removeCallbacks(pollRunnable)
         handler.post(pollRunnable)
@@ -186,6 +221,8 @@ class ReadingTrackerService : Service() {
     override fun onDestroy() {
         handler.removeCallbacks(pollRunnable)
         handler.removeCallbacks(autoAsk)
+        handler.removeCallbacks(chooseAsk)
+        cancelChooseQuestion()
         unregisterReceiver(screenReceiver)
         pauseSession()
         if (manual) endManualMode(notify = false)
@@ -348,6 +385,16 @@ class ReadingTrackerService : Service() {
 
     private fun onReadingAppEntered(pkg: String) {
         if (!isScreenOn) return
+        if (choosing == pkg) {
+            // Книга выбирается: ни пузырька, ни значка, время не идёт
+            pauseSession()
+            overlay.hide()
+            activeBookId = null
+            Diag.set(this, Diag.EVENT, "${Diag.time()} вход в читалку на паузе: книга выбирается")
+            return
+        }
+        // Пауза была для другой читалки — она кончилась
+        if (choosing != null) { endChoosing(); updateNotification() }
         pauseSession()
         idle = false
         signalsAtEntry = ActivitySignal.count(pkg)
@@ -519,6 +566,7 @@ class ReadingTrackerService : Service() {
      */
     private fun checkScreen() {
         val pkg = foregroundReadingApp ?: return
+        if (choosing == pkg) return
         val pagesAt = ReaderScreen.pagesAt
         if (pagesAt > pagesSeenAt && ReaderScreen.pagesPkg == pkg && pagesAt >= enteredAt) {
             pagesSeenAt = pagesAt
@@ -571,6 +619,83 @@ class ReadingTrackerService : Service() {
                     }
                 }
             }
+        }
+    }
+
+    // ── Пауза «ещё выбираю» ──────────────────────────────────────────────────
+
+    /** «Остановить трекер»: читалка открывается без счёта, каждые 5 минут вопрос в уведомлении. */
+    private fun startChoosing(pkg: String) {
+        pauseSession()
+        closeUnassigned(); clearUnassigned()
+        overlay.hide()
+        formOpen = false
+        offeredBookId = null
+        activeBookId = null
+        choosing = pkg
+        // Читалка ещё не на экране (впереди было окно трекера): вход распознается, когда она появится
+        foregroundReadingApp = null
+        cancelChooseQuestion()
+        handler.removeCallbacks(chooseAsk)
+        handler.postDelayed(chooseAsk, CHOOSE_EVERY_MS)
+        updateNotification()
+        Diag.set(this, Diag.EVENT, "${Diag.time()} пауза: книга выбирается")
+    }
+
+    private fun endChoosing() {
+        choosing = null
+        handler.removeCallbacks(chooseAsk)
+        cancelChooseQuestion()
+    }
+
+    /** «Считать время чтения или ты ещё выбираешь?». Пока уведомление висит, новое не публикуется. */
+    private fun postChooseQuestion() {
+        if (choosing == null) return
+        val nm = getSystemService(NotificationManager::class.java)
+        if (nm.activeNotifications.any { it.id == CHOOSE_NOTIFICATION_ID }) return
+        val count = PendingIntent.getActivity(this, 21,
+            Intent(this, ChooseAnswerActivity::class.java).setAction(ACTION_CHOOSE_COUNT)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val later = PendingIntent.getService(this, 22,
+            Intent(this, ReadingTrackerService::class.java).setAction(ACTION_CHOOSE_LATER),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val n = NotificationCompat.Builder(this, Constants.CHOOSE_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_book_notify)
+            .setContentTitle("Считать время чтения или ты ещё выбираешь?")
+            .setAutoCancel(true)
+            // Смахнули — как «Ещё выбираю»
+            .setDeleteIntent(later)
+            .addAction(0, "Считать", count)
+            .addAction(0, "Ещё выбираю", later)
+            .build()
+        try { nm.notify(CHOOSE_NOTIFICATION_ID, n) } catch (_: SecurityException) {}
+    }
+
+    private fun cancelChooseQuestion() {
+        getSystemService(NotificationManager::class.java).cancel(CHOOSE_NOTIFICATION_ID)
+    }
+
+    /** «Ещё выбираю» или смахнули: снова спросим через 5 минут. */
+    private fun chooseLater() {
+        if (choosing == null) { cancelChooseQuestion(); return }
+        cancelChooseQuestion()
+        handler.removeCallbacks(chooseAsk)
+        handler.postDelayed(chooseAsk, CHOOSE_EVERY_MS)
+    }
+
+    /** «Считать»: пауза кончилась, сразу форма книги; время идёт с этой минуты. */
+    private fun chooseCount() {
+        val pkg = choosing
+        endChoosing()
+        updateNotification()
+        if (pkg == null) return
+        if (foregroundReadingApp == pkg && isScreenOn) {
+            startUnassigned(pkg, trackedApps[pkg] ?: pkg)
+            openForm()
+        } else {
+            // Читалки нет на экране: при входе в неё — обычный значок «＋ книга»
+            foregroundReadingApp = null
         }
     }
 
@@ -634,9 +759,12 @@ class ReadingTrackerService : Service() {
                 .setContentText("Пауза сама, если 3 мин нет перелистываний")
                 .setWhen(ManualTimer.since).setShowWhen(true).setUsesChronometer(true)
                 .addAction(0, "стоп", stop)
+        } else if (choosing != null) {
+            b.setContentTitle("Пауза: время не считается")
+                .setContentText("Трекер выгрузится сам, когда закроешь читалку")
         } else {
             b.setContentTitle("Идёт чтение")
-                .setContentText("Трекер выгрузится сам, когда закроете читалку")
+                .setContentText("Трекер выгрузится сам, когда закроешь читалку")
         }
         return b.build()
     }

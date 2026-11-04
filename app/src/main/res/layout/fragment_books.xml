@@ -34,7 +34,7 @@
         android:id="@+id/tvEmpty"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Книг пока нет.\nОткройте читалку кнопкой «читать» на главном — появится пузырёк.\nИли добавьте книгу вручную."
+        android:text="Книг пока нет.\nОткрой читалку кнопкой «читать» на главном — появится пузырёк.\nИли добавь книгу вручную."
         android:textAlignment="center"
         android:textColor="?android:attr/textColorSecondary"
         android:visibility="gone"

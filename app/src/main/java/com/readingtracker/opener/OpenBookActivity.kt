@@ -91,7 +91,7 @@ class OpenBookActivity : AppCompatActivity() {
         val title = b.etTitle.text.toString().trim()
         val author = b.etAuthor.text.toString().trim()
         if (title.isEmpty() && author.isEmpty()) {
-            b.etTitle.error = "Заполните название или автора"
+            b.etTitle.error = "Заполни название или автора"
             return
         }
         lifecycleScope.launch {

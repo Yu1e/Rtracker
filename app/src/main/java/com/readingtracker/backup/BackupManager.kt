@@ -39,6 +39,7 @@ object BackupManager {
                 put("lastNotifiedAt", b.lastNotifiedAt ?: JSONObject.NULL)
                 put("manualMinutes", b.manualMinutes)
                 put("pagesRead", b.pagesRead); put("pagesTotal", b.pagesTotal)
+                put("genres", b.genres)
             })
         }
         val sessions = JSONArray()
@@ -86,7 +87,8 @@ object BackupManager {
                 lastNotifiedAt = o.optLongOrNull("lastNotifiedAt"),
                 manualMinutes = o.optLong("manualMinutes"),
                 pagesRead = o.optInt("pagesRead"),
-                pagesTotal = o.optInt("pagesTotal")
+                pagesTotal = o.optInt("pagesTotal"),
+                genres = o.optString("genres")
             )
         }
         val sessions = mutableListOf<ReadingSession>()
@@ -111,7 +113,7 @@ object BackupManager {
         val folderUri = Prefs.backupFolder(context) ?: error("Папка для копий не выбрана")
         val folder = DocumentFile.fromTreeUri(context, folderUri)
             ?: error("Нет доступа к папке")
-        if (!folder.canWrite()) error("Нет доступа к папке, выберите её заново")
+        if (!folder.canWrite()) error("Нет доступа к папке, выбери её заново")
 
         val name = if (auto) "$AUTO_PREFIX${today()}.json"
         else "rtracker-${SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale.US).format(Date())}.json"

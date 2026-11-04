@@ -11,6 +11,7 @@ import com.readingtracker.R
 import com.readingtracker.ui.Fonts
 import com.readingtracker.ui.RtColors
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
@@ -59,6 +60,10 @@ class WeekBarsView @JvmOverloads constructor(
 
     private fun col(id: Int) = RtColors.c(context, id)
 
+    /** Рамка сегодняшнего дня: в стекле холодная мята, в ч/б и на чернилах — цвет текста. */
+    private fun todayColor(): Int =
+        if (glass) (if (RtColors.isNight(context)) 0xFF6FF0D0.toInt() else 0xFF14937C.toInt()) else col(R.color.rt_ink)
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.save(); canvas.scale(d, d)
@@ -93,10 +98,6 @@ class WeekBarsView @JvmOverloads constructor(
             canvas.drawRoundRect(bar, if (glass) 8f else 6f, if (glass) 8f else 6f, fill)
             fill.shader = null
 
-            if (i == today) {
-                stroke.color = col(R.color.rt_ink)
-                canvas.drawRoundRect(RectF(bar.left - 2.5f, bar.top - 2.5f, bar.right + 2.5f, bar.bottom + 2.5f), 8.5f, 8.5f, stroke)
-            }
 
             val text = v.toString()
             numPaint.textSize = if (v > 999) 12f else 15f
@@ -129,9 +130,12 @@ class WeekBarsView @JvmOverloads constructor(
             val labelCenterY = hDp - labelH / 2
             canvas.drawText(days[i], cx, labelCenterY - (dayPaint.ascent() + dayPaint.descent()) / 2, dayPaint)
             if (i == today) {
-                val tw = dayPaint.measureText(days[i])
-                stroke.color = col(R.color.rt_ink)
-                canvas.drawRoundRect(RectF(cx - tw / 2 - 7f, hDp - labelH + 0.75f, cx + tw / 2 + 7f, hDp - 0.75f), 7f, 7f, stroke)
+                // Одна рамка вокруг всего дня: число, столбик и подпись
+                stroke.color = todayColor()
+                stroke.strokeWidth = 1.8f
+                val frameTop = min(numTop, barTop) - 5f
+                canvas.drawRoundRect(RectF(x0 + 0.9f, frameTop, x0 + colW - 0.9f, hDp - 0.9f), 9f, 9f, stroke)
+                stroke.strokeWidth = 1.5f
             }
         }
         canvas.restore()
