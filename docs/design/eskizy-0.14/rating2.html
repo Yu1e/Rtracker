@@ -1,0 +1,55 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#d9d4ea;font-family:Rubik,system-ui,sans-serif;padding:24px;width:1560px}
+.v{margin-bottom:26px}.cap{font-size:15px;font-weight:600;color:#1E1838;margin:0 0 8px 4px;max-width:1500px}
+.row{display:flex;gap:18px}
+.ph{width:360px;border-radius:22px;padding:14px;background:radial-gradient(circle at 20% 20%,#3a2a8a 0,transparent 50%),radial-gradient(circle at 85% 80%,#6a1f55 0,transparent 45%),#0E0C1F;color:#F3F0FF;box-sizing:border-box}
+.card{background:#ffffff14;border:1px solid #ffffff2e;border-radius:18px;padding:12px 14px;height:250px;position:relative}
+.lbl{font-size:13px;color:#BDB6E0}.num{position:absolute;right:16px;bottom:12px;font-size:28px;font-weight:700}.num small{font-size:13px;color:#BDB6E0;font-weight:400}
+</style></head><body>
+<div id="out"></div>
+<script>
+const H=["#9D7BFF","#FF3D9A","#2EE6FF","#FFD83A","#3DFFC8","#C94BFF","#4F8BFF","#FF6A3D"];
+function card(svg,r,hint){return `<div class="ph"><div class="card"><div class="lbl">оценка${hint?' · '+hint:''}</div>${svg}<div class="num">${r} <small>из 10</small></div></div></div>`}
+// A. Поп-ап книга: раскрытая книга, из разворота поднимается бумажный замок/город; выше оценка — выше и пышнее, на 10 флажки и звёзды
+function popup(r){let s=`<svg width="330" height="200" viewBox="0 0 330 200">`;
+ s+=`<path d="M20 170 L160 180 L160 190 L20 182Z" fill="#E9E4FF"/><path d="M310 170 L170 180 L170 190 L310 182Z" fill="#D8D0F5"/>`;
+ s+=`<path d="M20 170 Q90 160 165 178 Q240 160 310 170" fill="none" stroke="#BDB6E0" stroke-width="2"/>`;
+ const n=Math.ceil(r/2), hs=[40,62,90,70,52];
+ for(let i=0;i<5;i++){ if(i>=n)break; const x=70+i*40, h=hs[i]*(0.5+r/20); const c=H[i*2%8];
+  s+=`<path d="M${x} 176 L${x} ${176-h} L${x+14} ${176-h-14} L${x+28} ${176-h} L${x+28} 176Z" fill="${c}" opacity=".92" stroke="#0E0B1E" stroke-width="1.5"/>`;
+  s+=`<rect x="${x+9}" y="${176-h+10}" width="10" height="12" rx="5" fill="#0E0B1E" opacity=".5"/>`;
+  if(r==10) s+=`<path d="M${x+14} ${176-h-14} L${x+14} ${176-h-34} L${x+30} ${176-h-28} L${x+14} ${176-h-24}" fill="#FFD83A" stroke="#FFD83A"/>`; }
+ if(r>=7) for(let k=0;k<(r==10?14:5);k++){const x=40+((k*53)%250),y=20+((k*37)%60);s+=`<path d="M${x} ${y-5} L${x+1.5} ${y-1.5} L${x+5} ${y} L${x+1.5} ${y+1.5} L${x} ${y+5} L${x-1.5} ${y+1.5} L${x-5} ${y} L${x-1.5} ${y-1.5}Z" fill="${H[k%8]}"/>`}
+ return s+`</svg>`}
+// B. Лицо книги: обложка-лицо меняется от сонно-грустного до восторга; тянешь бровь/рот вверх пальцем
+function face(r){const t=(r-1)/9;let s=`<svg width="330" height="200" viewBox="0 0 330 200"><rect x="105" y="20" width="120" height="165" rx="8" fill="#2B2748" stroke="#BDB6E0" stroke-width="2"/><line x1="115" y1="22" x2="115" y2="183" stroke="#BDB6E0" stroke-width="1.5"/>`;
+ const ey=78; if(r==10){[140,190].forEach(x=>s+=`<path d="M${x} ${ey-12} L${x+4} ${ey-3} L${x+13} ${ey} L${x+4} ${ey+3} L${x} ${ey+12} L${x-4} ${ey+3} L${x-13} ${ey} L${x-4} ${ey-3}Z" fill="#FFD83A"/>`)}
+ else {const open=2+t*9;[140,190].forEach(x=>s+=`<ellipse cx="${x}" cy="${ey}" rx="8" ry="${open}" fill="#F3F0FF"/>`)}
+ const curve=-14+t*40; s+=`<path d="M135 ${132} Q165 ${132+curve} 195 132" fill="none" stroke="#F3F0FF" stroke-width="5" stroke-linecap="round"/>`;
+ if(r>=7) s+=`<ellipse cx="128" cy="112" rx="10" ry="6" fill="#FF3D9A" opacity=".55"/><ellipse cx="202" cy="112" rx="10" ry="6" fill="#FF3D9A" opacity=".55"/>`;
+ s+=`<rect x="40" y="70" width="8" height="110" rx="4" fill="#ffffff22"/><circle cx="44" cy="${180-t*110}" r="12" fill="#9D7BFF" stroke="#fff" stroke-width="2"/>`;
+ return s+`</svg>`}
+// C. Чашка: проводишь пальцем вверх — наливается чай, при 10 поднимается пар-сердечко
+function cup(r){const t=r/10;let s=`<svg width="330" height="200" viewBox="0 0 330 200"><defs><clipPath id="cc${r}"><path d="M110 60 L220 60 L208 175 Q165 188 122 175Z"/></clipPath><linearGradient id="tea${r}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#FFB84A"/><stop offset="1" stop-color="#C85A1E"/></linearGradient></defs>`;
+ const y=175-t*115; s+=`<g clip-path="url(#cc${r})"><path d="M100 ${y} Q130 ${y-8} 165 ${y} T230 ${y} L230 200 L100 200Z" fill="url(#tea${r})"/></g>`;
+ s+=`<path d="M110 60 L220 60 L208 175 Q165 188 122 175Z" fill="#ffffff14" stroke="#F3F0FF" stroke-width="3"/><path d="M218 85 Q250 90 245 120 Q240 145 210 145" fill="none" stroke="#F3F0FF" stroke-width="3"/>`;
+ for(let i=1;i<10;i++){const yy=175-i*11.5;s+=`<line x1="${112+i*0.6}" y1="${yy}" x2="${120}" y2="${yy}" stroke="#F3F0FF" stroke-width="1.2" opacity=".5"/>`}
+ if(r>=7)[140,165,190].forEach((x,i)=>s+=`<path d="M${x} 52 Q${x-8} 38 ${x} 26 Q${x+8} 14 ${x} 2" fill="none" stroke="#F3F0FF" stroke-width="2.5" opacity="${.3+i*.15}"/>`);
+ if(r==10) s+=`<path d="M165 18 C150 0 132 18 165 38 C198 18 180 0 165 18Z" fill="#FF3D9A"/>`;
+ return s+`</svg>`}
+// D. Цветок из книги: из раскрытой книги растёт стебель; оценка — высота и число лепестков; 10 — распустился полностью, с бабочкой
+function flower(r){let s=`<svg width="330" height="200" viewBox="0 0 330 200"><path d="M95 175 Q130 165 165 180 Q200 165 235 175 L235 188 Q200 178 165 193 Q130 178 95 188Z" fill="#E9E4FF" stroke="#BDB6E0"/>`;
+ const top=175-r*12; s+=`<path d="M165 180 Q158 ${(180+top)/2} 165 ${top}" fill="none" stroke="#3DFFC8" stroke-width="4"/>`;
+ if(r>=3) s+=`<path d="M163 ${150} Q140 140 138 125 Q158 128 163 145" fill="#3DFFC8"/>`;
+ if(r>=6) s+=`<path d="M167 ${125} Q190 115 194 100 Q172 102 167 120" fill="#3DFFC8"/>`;
+ const pet=Math.max(0,r-2);for(let i=0;i<pet;i++){const a=i*360/8*Math.PI/180;s+=`<ellipse cx="${165+Math.cos(a)*16}" cy="${top+Math.sin(a)*16}" rx="12" ry="7" transform="rotate(${i*45} ${165+Math.cos(a)*16} ${top+Math.sin(a)*16})" fill="${H[i%8]}" opacity=".92"/>`}
+ s+=`<circle cx="165" cy="${top}" r="${r>=3?8:5}" fill="#FFD83A"/>`;
+ if(r==10) s+=`<g transform="translate(235 40)"><ellipse cx="-7" cy="0" rx="9" ry="12" fill="#2EE6FF"/><ellipse cx="7" cy="0" rx="9" ry="12" fill="#C94BFF"/><rect x="-1.5" y="-10" width="3" height="20" rx="1.5" fill="#0E0B1E"/></g>`;
+ return s+`</svg>`}
+const V=[["А. Поп-ап книга: из разворота поднимается бумажный город, выше оценка — выше и пестрее башни; на 10 флажки и блёстки. Палец ведёт вверх-вниз по развороту",popup],
+["Б. Лицо обложки: ведёшь пальцем по бегунку слева — книга просыпается и улыбается всё шире, на 7 румянец, на 10 глаза-звёзды",face],
+["В. Чашка чая (из «запаса»): ведёшь пальцем вверх — чай наливается до деления; с 7 поднимается пар, на 10 — сердечко из пара",cup],
+["Г. Цветок из книги: из раскрытой книги растёт стебель, оценка — его высота и число лепестков; на 10 цветок распускается и прилетает бабочка",flower]];
+let h='';V.forEach(([t,f])=>{h+=`<div class="v"><p class="cap">${t}</p><div class="row">${[3,7,10].map(r=>card(f(r),r)).join('')}</div></div>`});
+document.getElementById('out').innerHTML=h;
+</script></body></html>
