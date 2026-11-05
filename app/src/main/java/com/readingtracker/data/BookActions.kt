@@ -92,11 +92,21 @@ object BookActions {
         NotificationManagerCompat.from(context).cancel(notificationId(bookId))
     }
 
+    /** «Читаю одновременно»: новая книга не повод спрашивать; дальше — обычное правило трёх недель. */
+    suspend fun readingTogether(context: Context, bookId: Long) {
+        val db = AppDatabase.getInstance(context)
+        val book = db.bookDao().getBookById(bookId) ?: return
+        db.bookDao().updateBook(book.copy(needsStatusCheck = false,
+            statusAskAt = System.currentTimeMillis() + THREE_WEEKS_MS))
+        NotificationManagerCompat.from(context).cancel(notificationId(bookId))
+    }
+
     suspend fun delete(context: Context, bookId: Long) {
         val db = AppDatabase.getInstance(context)
         val book = db.bookDao().getBookById(bookId) ?: return
         db.sessionDao().deleteForBook(bookId)
         db.readingDao().deleteForBook(bookId)
+        db.quoteDao().deleteForBook(bookId)
         db.bookDao().deleteBook(book)
         NotificationManagerCompat.from(context).cancel(notificationId(bookId))
         WidgetUpdater.update(context)

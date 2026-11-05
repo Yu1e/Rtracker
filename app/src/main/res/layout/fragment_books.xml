@@ -15,9 +15,24 @@
         android:padding="16dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btnQuotes" />
+
+    <!-- Цитаты: все выписки, отдельный экран -->
+    <TextView
+        android:id="@+id/btnQuotes"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minHeight="40dp"
+        android:gravity="center"
+        android:paddingStart="12dp"
+        android:paddingEnd="16dp"
+        android:text="цитаты"
+        android:textSize="15sp"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintTop_toTopOf="@id/tvHeader"
+        app:layout_constraintBottom_toBottomOf="@id/tvHeader"
         app:layout_constraintEnd_toEndOf="parent" />
-
-
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"

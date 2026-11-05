@@ -605,7 +605,8 @@ class StatsFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val r = withContext(Dispatchers.IO) {
                 runCatching {
-                    val files = Exporter.build(job, books, sessions, readings)
+                    val quotes = com.readingtracker.data.AppDatabase.getInstance(ctx).quoteDao().getAll()
+                    val files = Exporter.build(job, books, sessions, readings, quotes)
                     Exporter.write(ctx, folder, files)
                 }
             }

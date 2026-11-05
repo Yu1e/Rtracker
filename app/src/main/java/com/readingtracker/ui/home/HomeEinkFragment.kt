@@ -108,11 +108,14 @@ class HomeEinkFragment : Fragment() {
         val readName = readers.firstOrNull { it.key == readPkg }?.value
             ?: book?.appName?.takeIf { it.isNotBlank() } ?: "читалка не найдена"
         // Бумажная книга сверху: «читать» запускает таймер
-        val offPhone = book != null && book.appPackage in HomeFragment.OFF_PHONE
-        b.btnRead.setReader(if (!offPhone) readName
+        val web = book != null && book.appPackage == com.readingtracker.data.Book.PKG_ONLINE && book.url.isNotBlank()
+        val offPhone = book != null && book.appPackage in HomeFragment.OFF_PHONE && !web
+        b.btnRead.setReader(if (web) com.readingtracker.service.WebReading.browserName(ctx) else if (!offPhone) readName
             else if (book != null && ManualTimer.isRunningFor(book.id)) "остановить таймер" else "запуск таймера")
         b.btnRead.setOnClickListener {
-            if (offPhone && book != null) {
+            if (web && book != null) {
+                com.readingtracker.service.WebReading.open(ctx, book.id, book.url)
+            } else if (offPhone && book != null) {
                 if (ManualTimer.isRunningFor(book.id)) ManualTimer.stop(ctx)
                 else {
                     ManualTimer.start(ctx, book.id)

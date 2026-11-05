@@ -40,6 +40,10 @@ interface BookDao {
     @Query("UPDATE books SET pagesRead = :read, pagesTotal = :total WHERE id = :id")
     suspend fun setPages(id: Long, read: Int, total: Int)
 
+    /** Адрес книги «В интернете» (последняя открытая часть). */
+    @Query("UPDATE books SET url = :url WHERE id = :id")
+    suspend fun setUrl(id: Long, url: String)
+
     @Query("UPDATE books SET author = :author WHERE id = :id AND author = ''")
     suspend fun fillAuthor(id: Long, author: String)
 

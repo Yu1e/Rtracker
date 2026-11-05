@@ -72,10 +72,10 @@ class LaunchReaderActivity : Activity() {
         else android.R.style.Theme_DeviceDefault_Light_Dialog_Alert
         AlertDialog.Builder(this, theme)
             .setMessage(
-                "Здесь у тебя нет открытой книги. Если ещё не знаешь и будешь выбирать — нажми «Остановить трекер».\n\n" +
+                "Здесь у тебя нет открытой книги. Если ещё не знаешь и будешь выбирать — нажми «Трекер на паузу».\n\n" +
                     "Когда выберешь книгу в этой читалке — закрой читалку, снова запусти трекер и в этом окне нажми «Время чтения пошло»."
             )
-            .setNegativeButton("Остановить трекер") { _, _ -> start(choosing = true) }
+            .setNegativeButton("Трекер на паузу") { _, _ -> start(choosing = true) }
             .setPositiveButton("Время чтения пошло") { _, _ -> start(choosing = false) }
             .setOnCancelListener { finish() }
             .show()

@@ -43,6 +43,8 @@ class ReadingTrackerService : Service() {
         const val EXTRA_READER_PKG = "reader_pkg"
         const val EXTRA_CHOOSING = "choosing"
         const val EXTRA_MANUAL_BOOK = "manual_book"
+        const val EXTRA_WEB_BOOK = "web_book"
+        const val EXTRA_WEB_PKG = "web_pkg"
         const val ACTION_STOP_MANUAL = "com.readingtracker.STOP_MANUAL"
         const val ACTION_CHOOSE_COUNT = "com.readingtracker.CHOOSE_COUNT"
         const val ACTION_CHOOSE_LATER = "com.readingtracker.CHOOSE_LATER"
@@ -50,7 +52,7 @@ class ReadingTrackerService : Service() {
 
         /**
          * Запуск службы на время чтения. Вызывается из ярлыка/кнопки читалки.
-         * choosing — «Остановить трекер»: читалка открыта, время не идёт, пока книга выбирается.
+         * choosing — «Трекер на паузу»: читалка открыта, время не идёт, пока книга выбирается.
          */
         fun startForReader(context: Context, pkg: String, choosing: Boolean = false) {
             val i = Intent(context, ReadingTrackerService::class.java)
@@ -58,6 +60,16 @@ class ReadingTrackerService : Service() {
                 .putExtra(EXTRA_CHOOSING, choosing)
             context.startForegroundService(i)
         }
+
+        /** Чтение «В интернете»: книга открыта в браузере, трекер следит за адресом. */
+        fun startForWeb(context: Context, bookId: Long, browserPkg: String) {
+            context.startForegroundService(Intent(context, ReadingTrackerService::class.java)
+                .putExtra(EXTRA_WEB_BOOK, bookId).putExtra(EXTRA_WEB_PKG, browserPkg))
+        }
+
+        /** Книга, которая сейчас идёт в трекере (для пузырька цитаты); null — нет. */
+        @Volatile var currentBookId: Long? = null
+            private set
 
         /** Ответ на вопрос «считать?» из уведомления. */
         fun sendChoose(context: Context, action: String) {
@@ -80,6 +92,7 @@ class ReadingTrackerService : Service() {
     private var foregroundReadingApp: String? = null
 
     private var activeBookId: Long? = null
+        set(v) { field = v; currentBookId = v }
     @Volatile private var activeSessionId: Long? = null
 
     private var isScreenOn = true
@@ -205,7 +218,11 @@ class ReadingTrackerService : Service() {
         }
         val manualBook = intent?.getLongExtra(EXTRA_MANUAL_BOOK, -1L) ?: -1L
         val pkg = intent?.getStringExtra(EXTRA_READER_PKG)
-        if (manualBook > 0) {
+        val webBook = intent?.getLongExtra(EXTRA_WEB_BOOK, -1L) ?: -1L
+        val webBrowser = intent?.getStringExtra(EXTRA_WEB_PKG)
+        if (webBook > 0 && webBrowser != null) {
+            startWeb(webBook, webBrowser)
+        } else if (manualBook > 0) {
             startManual(manualBook)
         } else if (pkg != null) {
             // Открыли читалку: ручной таймер уступает обычному отслеживанию
@@ -238,8 +255,10 @@ class ReadingTrackerService : Service() {
         // Сеанс закрывается сразу, до остановки службы: фоновую запись остановка могла бы оборвать
         closeSessionNow()
         if (manual) endManualMode(notify = false)
+        if (webPkg != null) ReaderAccessibilityService.watchWeb(null)
         overlay.hide()
         scope.cancel()
+        currentBookId = null
         super.onDestroy()
     }
 
@@ -398,6 +417,7 @@ class ReadingTrackerService : Service() {
 
     private fun onReadingAppEntered(pkg: String) {
         if (!isScreenOn) return
+        if (pkg == webPkg) { enterWeb(pkg); return }
         if (choosing == pkg) {
             // Книга выбирается: ни пузырька, ни значка, время не идёт
             enteredAt = System.currentTimeMillis()
@@ -538,14 +558,14 @@ class ReadingTrackerService : Service() {
         }
     }
 
-    /** «… уже есть в трекере, статус «дочитана». Хочешь перечитать?» — «Да, перечитаю» / «Остановить трекер». */
+    /** «… уже есть в трекере, статус «дочитана». Хочешь перечитать?» — «Да, перечитаю» / «Трекер на паузу». */
     private fun askReread(bk: Book, pkg: String, appName: String, pieces: List<LongArray>) {
         if (foregroundReadingApp != pkg) return
         formOpen = true
         val name = bk.title.ifBlank { bk.author }.ifBlank { "Без названия" }
         overlay.showQuestion(appName,
             "«$name» уже есть в трекере, статус «${com.readingtracker.export.Exporter.statusWord(bk.status)}». Хочешь перечитать?",
-            "Да, перечитаю", "Остановить трекер",
+            "Да, перечитаю", "Трекер на паузу",
             onYes = {
                 overlay.hide(); formOpen = false
                 scope.launch {
@@ -618,6 +638,7 @@ class ReadingTrackerService : Service() {
      */
     private fun checkScreen() {
         val pkg = foregroundReadingApp ?: return
+        if (pkg == webPkg) { checkWeb(pkg); return }
         if (choosing == pkg) {
             // Книга появилась на экране (или нажали «Читать») — выбор закончен, дальше обычный путь
             val seen = ReaderScreen.title != null && ReaderScreen.titlePkg == pkg && ReaderScreen.titleAt >= enteredAt
@@ -681,9 +702,148 @@ class ReadingTrackerService : Service() {
         }
     }
 
+    // ── Чтение «В интернете» ──────────────────────────────────────────────────
+
+    /** Браузер, в котором читается книга «В интернете»; null — режим выключен. */
+    private var webPkg: String? = null
+    private var webBookId: Long? = null
+    private var webBookTitle = ""
+    /** Адрес книги (последняя признанная часть). */
+    private var webBookUrl = ""
+    /** Последний разобранный адрес. */
+    private var lastWebUrl: String? = null
+    /** Адреса, про которые ответили «Нет»: больше не спрашиваем. */
+    private val webDeclined = HashSet<String>()
+    private var webAskedAt = 0L
+
+    private fun startWeb(bookId: Long, browser: String) {
+        if (manual) endManualMode()
+        if (choosing != null) endChoosing()
+        pauseSession()
+        overlay.hide(); formOpen = false
+        webPkg = browser
+        webBookId = bookId
+        webDeclined.clear()
+        lastWebUrl = null
+        startedFor = browser
+        outsideSince = 0L
+        lastEventTime = System.currentTimeMillis() - 5_000
+        trackedApps = trackedApps + (browser to "браузер")
+        // Вход в браузер распознаётся заново
+        foregroundReadingApp = null
+        ReaderAccessibilityService.watchWeb(browser)
+        scope.launch {
+            val bk = db.bookDao().getBookById(bookId)
+            withContext(Dispatchers.Main) {
+                webBookUrl = bk?.url ?: ""
+                webBookTitle = bk?.let { Book.displayName(it) } ?: "книга"
+            }
+        }
+        Diag.set(this, Diag.EVENT, "${Diag.time()} чтение в интернете: $browser")
+    }
+
+    /** Браузер на экране: время идёт книге, пока адрес её. */
+    private fun enterWeb(pkg: String) {
+        pauseSession()
+        idle = false
+        signalsAtEntry = ActivitySignal.count(pkg)
+        enteredAt = System.currentTimeMillis()
+        clearUnassigned()
+        overlay.hide(); formOpen = false
+        lastWebUrl = null
+        val id = webBookId ?: return
+        activeBookId = id
+        startSessionInternal(id, pkg)
+        updateNotification()
+    }
+
+    private fun webResume(pkg: String) {
+        val id = webBookId ?: return
+        if (activeBookId == id && (activeSessionId != null || idle)) return
+        idle = false
+        activeBookId = id
+        startSessionInternal(id, pkg)
+        updateNotification()
+    }
+
+    private fun webPause(endAt: Long = System.currentTimeMillis()) {
+        pauseSession(endAt)
+        activeBookId = null
+        updateNotification()
+    }
+
+    /** Адрес в браузере сменился: та же книга, следующая часть (спросить) или чужая страница (пауза). */
+    private fun checkWeb(pkg: String) {
+        val raw = ReaderScreen.webUrl ?: return
+        if (ReaderScreen.webUrlAt < enteredAt) return
+        val url = WebReading.normalize(raw)
+        if (url == lastWebUrl) return
+        lastWebUrl = url
+        if (webBookUrl.isBlank()) { webBookUrl = url; saveWebUrl(raw) }
+        when (WebReading.classify(webBookUrl, url)) {
+            WebReading.Match.SAME -> {
+                if (formOpen) { overlay.hide(); formOpen = false }
+                webResume(pkg)
+            }
+            WebReading.Match.SIMILAR -> {
+                if (url in webDeclined) { if (formOpen) { overlay.hide(); formOpen = false }; webPause(); return }
+                askWeb(pkg, url, raw)
+            }
+            WebReading.Match.OTHER -> {
+                if (formOpen) { overlay.hide(); formOpen = false }
+                webPause()
+            }
+        }
+    }
+
+    /** «Это следующая часть книги «…»?» Пока вопрос висит, время идёт как шло. */
+    private fun askWeb(pkg: String, url: String, raw: String) {
+        formOpen = true
+        webAskedAt = System.currentTimeMillis()
+        overlay.showWebQuestion("в интернете", webBookTitle,
+            onYes = {
+                overlay.hide(); formOpen = false
+                webBookUrl = url
+                saveWebUrl(raw)
+                webResume(pkg)
+            },
+            onPause = {
+                overlay.hide(); formOpen = false
+                webDeclined += url
+                webPause(endAt = webAskedAt)
+            },
+            onNew = {
+                webPause(endAt = webAskedAt)
+                overlay.showForm("в интернете",
+                    onNewBook = { t, a -> newWebBook(pkg, t, a, url, raw) },
+                    onDismiss = { overlay.hide(); formOpen = false; webDeclined += url })
+            })
+    }
+
+    private fun saveWebUrl(raw: String) {
+        val id = webBookId ?: return
+        scope.launch { db.bookDao().setUrl(id, raw) }
+    }
+
+    /** «Это новая книга»: карточка «В интернете» с этим адресом, время идёт ей. */
+    private fun newWebBook(pkg: String, title: String, author: String, url: String, raw: String) {
+        overlay.hide(); formOpen = false
+        scope.launch {
+            val id = BookActions.addNewBook(this@ReadingTrackerService, title, author, Book.PKG_ONLINE, "В интернете")
+            db.bookDao().setUrl(id, raw)
+            val bk = db.bookDao().getBookById(id)
+            withContext(Dispatchers.Main) {
+                webBookId = id
+                webBookUrl = url
+                webBookTitle = bk?.let { Book.displayName(it) } ?: title
+                if (foregroundReadingApp == pkg && isScreenOn) webResume(pkg)
+            }
+        }
+    }
+
     // ── Пауза «ещё выбираю» ──────────────────────────────────────────────────
 
-    /** «Остановить трекер»: читалка открывается без счёта, каждые 5 минут вопрос в уведомлении. */
+    /** «Трекер на паузу»: читалка открывается без счёта, каждые 5 минут вопрос в уведомлении. */
     private fun startChoosing(pkg: String) {
         pauseSession()
         closeUnassigned(); clearUnassigned()
@@ -846,6 +1006,9 @@ class ReadingTrackerService : Service() {
                 .setContentText("Пауза сама, если 3 мин нет перелистываний")
                 .setWhen(ManualTimer.since).setShowWhen(true).setUsesChronometer(true)
                 .addAction(0, "стоп", stop)
+        } else if (webPkg != null && foregroundReadingApp == webPkg) {
+            b.setContentTitle(if (activeBookId != null) "Идёт чтение в интернете" else "Пауза: эта страница не из книги")
+                .setContentText("Трекер выгрузится сам, когда закроешь браузер")
         } else if (choosing != null) {
             b.setContentTitle("Пауза: время не считается")
                 .setContentText("Трекер выгрузится сам, когда закроешь читалку")

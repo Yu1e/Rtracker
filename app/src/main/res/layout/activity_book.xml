@@ -89,6 +89,22 @@
             android:layout_height="48dp"
             android:layout_marginBottom="8dp" />
 
+        <!-- Адрес: только у книги «В интернете»; «читать» откроет его в браузере -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/urlBlock"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="адрес в интернете"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etUrl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textUri" />
+        </com.google.android.material.textfield.TextInputLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -281,6 +297,13 @@
             android:lineSpacingExtra="2dp"
             android:layout_marginBottom="12dp"
             android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnQuotes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
         <Button
             android:id="@+id/btnOpenReader"

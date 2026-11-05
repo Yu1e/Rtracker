@@ -29,6 +29,14 @@ object ReaderScreen {
     @Volatile var pagesAt = 0L
         private set
 
+    /** Адрес из строки браузера (чтение «В интернете»). */
+    @Volatile var webUrl: String? = null
+        private set
+    @Volatile var webUrlAt = 0L
+        private set
+
+    fun seeUrl(u: String) { webUrl = u; webUrlAt = System.currentTimeMillis() }
+
     private val PAGES = Regex("(\\d+)\\s*из\\s*(\\d+)")
 
     /** Отметка времени обновляется и при том же названии: значит, книга сейчас на экране. */

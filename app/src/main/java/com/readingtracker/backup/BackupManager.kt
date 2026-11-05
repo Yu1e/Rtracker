@@ -7,6 +7,7 @@ import androidx.room.withTransaction
 import com.readingtracker.Prefs
 import com.readingtracker.data.AppDatabase
 import com.readingtracker.data.Book
+import com.readingtracker.data.Quote
 import com.readingtracker.data.Reading
 import com.readingtracker.data.ReadingSession
 import com.readingtracker.widget.WidgetUpdater
@@ -41,6 +42,7 @@ object BackupManager {
                 put("manualMinutes", b.manualMinutes)
                 put("pagesRead", b.pagesRead); put("pagesTotal", b.pagesTotal)
                 put("genres", b.genres)
+                put("url", b.url)
             })
         }
         val sessions = JSONArray()
@@ -58,9 +60,17 @@ object BackupManager {
                 put("status", r.status); put("reread", r.reread)
             })
         }
+        val quotes = JSONArray()
+        for (q in db.quoteDao().getAll()) {
+            quotes.put(JSONObject().apply {
+                put("id", q.id); put("bookId", q.bookId); put("text", q.text)
+                put("tags", q.tags); put("createdAt", q.createdAt); put("draft", q.draft)
+            })
+        }
         return JSONObject().apply {
             put("format", "rtracker")
-            put("version", 3)
+            put("version", 4)
+            put("quotes", quotes)
             put("readings", readings)
             put("created", System.currentTimeMillis())
             put("books", books)
@@ -72,7 +82,7 @@ object BackupManager {
     private fun JSONObject.optIntOrNull(key: String): Int? = if (isNull(key)) null else optInt(key)
 
     data class Parsed(val books: List<Book>, val sessions: List<ReadingSession>, val created: Long,
-                      val readings: List<Reading> = emptyList())
+                      val readings: List<Reading> = emptyList(), val quotes: List<Quote> = emptyList())
 
     fun parse(text: String): Parsed {
         val root = JSONObject(text)
@@ -99,7 +109,8 @@ object BackupManager {
                 manualMinutes = o.optLong("manualMinutes"),
                 pagesRead = o.optInt("pagesRead"),
                 pagesTotal = o.optInt("pagesTotal"),
-                genres = o.optString("genres")
+                genres = o.optString("genres"),
+                url = o.optString("url")
             )
         }
         val sessions = mutableListOf<ReadingSession>()
@@ -126,7 +137,16 @@ object BackupManager {
                 )
             }
         }
-        return Parsed(books, sessions, root.optLong("created"), readings)
+        // Цитаты — с версии копии 4
+        val quotes = mutableListOf<Quote>()
+        root.optJSONArray("quotes")?.let { qa ->
+            for (i in 0 until qa.length()) {
+                val o = qa.getJSONObject(i)
+                quotes += Quote(id = o.getLong("id"), bookId = o.getLong("bookId"), text = o.optString("text"),
+                    tags = o.optString("tags"), createdAt = o.optLong("createdAt"), draft = o.optBoolean("draft"))
+            }
+        }
+        return Parsed(books, sessions, root.optLong("created"), readings, quotes)
     }
 
     // ── Запись ────────────────────────────────────────────────────────────────
@@ -184,10 +204,12 @@ object BackupManager {
         db.withTransaction {
             db.sessionDao().deleteAll()
             db.readingDao().deleteAll()
+            db.quoteDao().deleteAll()
             db.bookDao().deleteAll()
             db.bookDao().insertAll(parsed.books)
             db.sessionDao().insertAll(parsed.sessions)
             db.readingDao().insertAll(parsed.readings)
+            db.quoteDao().insertAll(parsed.quotes)
         }
         WidgetUpdater.update(context)
     }

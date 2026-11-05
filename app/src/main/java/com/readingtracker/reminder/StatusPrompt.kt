@@ -31,7 +31,10 @@ class StatusPrompt(private val activity: AppCompatActivity) {
         showing = true
         val reason = if (book.needsStatusCheck) "Начата новая книга."
         else "Книга начата ${BookActions.daysOnBook(book)} дн. назад."
-        val items = arrayOf("Дочитана", "Брошена", "Отложена", "Открыть карточку книги", "Спросить через неделю")
+        // «Читаю одновременно» — только когда спрашиваем из-за новой книги, предпоследним пунктом
+        val together = book.needsStatusCheck
+        val items = if (together) arrayOf("Дочитана", "Брошена", "Отложена", "Открыть карточку книги", "Читаю одновременно", "Спросить через неделю")
+            else arrayOf("Дочитана", "Брошена", "Отложена", "Открыть карточку книги", "Спросить через неделю")
 
         var answered = false
         val pad = (20 * activity.resources.displayMetrics.density).toInt()
@@ -53,6 +56,8 @@ class StatusPrompt(private val activity: AppCompatActivity) {
                             BookActions.askLater(activity, book.id)
                             BookActivity.open(activity, book.id)
                         }
+                        4 -> if (together) BookActions.readingTogether(activity, book.id)
+                            else BookActions.askLater(activity, book.id)
                         else -> BookActions.askLater(activity, book.id)
                     }
                     showing = false

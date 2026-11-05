@@ -32,7 +32,9 @@ data class Book(
     /** Всего страниц; 0 — неизвестно. */
     val pagesTotal: Int = 0,
     /** Жанры через «|» в порядке списка Book.GENRES; пусто — не указан. */
-    val genres: String = ""
+    val genres: String = "",
+    /** Книга «В интернете»: адрес, с которого читается (последняя открытая часть). */
+    val url: String = ""
 ) {
     companion object {
         const val STATUS_READING = "reading"

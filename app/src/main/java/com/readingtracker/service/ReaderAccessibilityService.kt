@@ -35,18 +35,34 @@ class ReaderAccessibilityService : AccessibilityService() {
         /** Ручной таймер: слушать все приложения (true) или только читалки (false). */
         fun widen(all: Boolean) {
             val s = instance ?: return
-            try {
-                s.serviceInfo = s.serviceInfo.apply {
-                    packageNames = if (all || s.tracked.isEmpty()) null else s.tracked.keys.toTypedArray()
-                }
-            } catch (_: Exception) {}
+            s.wide = all
+            s.applyPackages()
         }
+
+        /** Чтение «В интернете»: слушать ещё и браузер (адрес, перелистывания, «Копировать»); null — перестать. */
+        fun watchWeb(pkg: String?) {
+            webPkg = pkg
+            instance?.applyPackages()
+        }
+
+        @Volatile var webPkg: String? = null
+            private set
 
         /** Счётчики событий по типам — для экрана проверки. */
         val eventTypeCounts = ConcurrentHashMap<String, Int>()
     }
 
     private var tracked: Map<String, String> = emptyMap()
+    private var wide = false
+
+    private fun applyPackages() {
+        try {
+            serviceInfo = serviceInfo.apply {
+                packageNames = if (wide || tracked.isEmpty()) null
+                    else (tracked.keys + listOfNotNull(webPkg)).toTypedArray()
+            }
+        } catch (_: Exception) {}
+    }
     private val ACTIVE_TYPES = setOf(
         AccessibilityEvent.TYPE_VIEW_SCROLLED, AccessibilityEvent.TYPE_VIEW_CLICKED,
         AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED, AccessibilityEvent.TYPE_VIEW_SELECTED
@@ -58,11 +74,12 @@ class ReaderAccessibilityService : AccessibilityService() {
         instance = this
         tracked = Constants.detectTrackedApps(this)
         serviceInfo = serviceInfo.apply {
-            if (tracked.isNotEmpty() && !ActivitySignal.manual) packageNames = tracked.keys.toTypedArray()
+            if (tracked.isNotEmpty() && !ActivitySignal.manual) packageNames = (tracked.keys + listOfNotNull(webPkg)).toTypedArray()
             eventTypes = AccessibilityEvent.TYPES_ALL_MASK
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
-                    AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
+                    AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or
+                    AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             notificationTimeout = 150
         }
         ActivitySignal.accessibilityConnected = true
@@ -71,6 +88,17 @@ class ReaderAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
+        if (pkg == webPkg && pkg !in tracked) {
+            // Браузер во время чтения «В интернете»: перелистывания, адрес, «Копировать»; содержимое в журнал не пишем
+            when (event.eventType) {
+                AccessibilityEvent.TYPE_VIEW_SCROLLED, AccessibilityEvent.TYPE_VIEW_CLICKED,
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+                AccessibilityEvent.TYPE_VIEW_SELECTED -> ActivitySignal.touch(pkg)
+            }
+            try { browser(pkg, event) } catch (_: Exception) {}
+            try { QuoteCatcher.onEvent(this, pkg, event) } catch (_: Exception) {}
+            return
+        }
         if (pkg !in tracked) {
             // Ручной таймер: перелистывания в любой другой читалке, кроме самого трекера и системной шторки
             if (ActivitySignal.manual && pkg != packageName && pkg != "com.android.systemui" &&
@@ -94,6 +122,8 @@ class ReaderAccessibilityService : AccessibilityService() {
         try {
             scout(pkg, event)
         } catch (_: Exception) {}
+        // Цитаты: «Копировать» в читалке → пузырёк
+        try { QuoteCatcher.onEvent(this, pkg, event) } catch (_: Exception) {}
         when (tracked[pkg]) {
             "ЛитРес" -> try { litres(pkg, event) } catch (_: Exception) {}
             "AlReader" -> try { alreader(pkg, event) } catch (_: Exception) {}
@@ -292,6 +322,25 @@ class ReaderAccessibilityService : AccessibilityService() {
         node.str()?.let { out += false to it }
         node.desc()?.let { if (it != node.str()) out += true to it }
         for (k in 0 until node.childCount) collectYandex(node.getChild(k) ?: continue, out, depth + 1)
+    }
+
+    // ── Браузер: адресная строка ─────────────────────────────────────────────
+    // Хром: com.android.chrome:id/url_bar; у других браузеров похожие id. Пока строку правят (в фокусе) — не читаем.
+
+    private var lastUrl: String? = null
+
+    private fun browser(pkg: String, event: AccessibilityEvent) {
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
+        if (throttled(pkg)) return
+        val root = rootInActiveWindow ?: return
+        val bar = (ids(pkg, root, "url_bar") + ids(pkg, root, "location_bar_edit_text") +
+            ids(pkg, root, "mozac_browser_toolbar_url_view") + ids(pkg, root, "url_field")).firstOrNull() ?: return
+        if (bar.isFocused) return
+        val url = bar.str() ?: return
+        if (url.contains(' ') || !url.contains('.')) return
+        ReaderScreen.seeUrl(url)
+        if (url != lastUrl) { lastUrl = url; ScoutLog.append(this, "[браузер] адрес: ${url.take(200)}") }
     }
 
     // ── ЛитРес: название, страницы, автор ─────────────────────────────────────

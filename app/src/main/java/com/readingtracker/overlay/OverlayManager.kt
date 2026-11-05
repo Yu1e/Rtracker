@@ -89,6 +89,23 @@ class OverlayManager(private val context: Context) {
         addToWindow(view, focusable = false)
     }
 
+    /**
+     * Чтение в интернете: адрес похож на адрес книги. «Это следующая часть книги «…»?» —
+     * «Да» / «Нет, трекер на паузу» / «Это новая книга». Крестик — как «Нет».
+     */
+    fun showWebQuestion(appName: String, bookName: String, onYes: () -> Unit, onPause: () -> Unit, onNew: () -> Unit) {
+        hide()
+        val view = LayoutInflater.from(themed).inflate(R.layout.overlay_web, null)
+        view.findViewById<TextView>(R.id.tvAppName).text = appName
+        view.findViewById<TextView>(R.id.tvQuestion).text = "Это следующая часть книги «$bookName»?"
+        view.findViewById<TextView>(R.id.tvBookName).visibility = View.GONE
+        view.findViewById<Button>(R.id.btnYes).setOnClickListener { onYes() }
+        view.findViewById<Button>(R.id.btnPause).setOnClickListener { onPause() }
+        view.findViewById<Button>(R.id.btnNew).setOnClickListener { onNew() }
+        view.findViewById<ImageButton>(R.id.btnClose).setOnClickListener { onPause() }
+        addToWindow(view, focusable = false)
+    }
+
     private fun showContinueOrNew(
         inflater: LayoutInflater,
         appName: String,

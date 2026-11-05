@@ -23,6 +23,7 @@ class BooksFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        b.btnQuotes.setOnClickListener { com.readingtracker.ui.quotes.QuotesActivity.open(requireContext()) }
         val adapter = BooksAdapter(
             onOpen = { book -> BookActivity.open(requireContext(), book.id) },
             onStatusChange = { book, status -> vm.setStatus(book, status) },
@@ -59,7 +60,7 @@ class BooksFragment : Fragment() {
                     ManualTimer.start(ctx, book.id)
                     Toast.makeText(ctx, ManualTimer.hint(), Toast.LENGTH_LONG).show()
                 }
-                .setNegativeButton("Остановить трекер", null)
+                .setNegativeButton("Трекер на паузу", null)
                 .show()
             return
         }

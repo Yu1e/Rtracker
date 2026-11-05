@@ -63,6 +63,13 @@ class BookActivity : AppCompatActivity() {
         b.spSource.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
             sources.map { it.first })
 
+        // Адрес — только у книги «В интернете»
+        b.spSource.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                b.urlBlock.visibility = if (sources.getOrNull(pos)?.second == Book.PKG_ONLINE) View.VISIBLE else View.GONE
+            }
+            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+        }
         b.rating.onChange = { updateRatingLabel(it) }
         b.btnStartDate.setOnClickListener { pickDate(startDate) { startDate = it; updateDates() } }
         b.btnEndDate.setOnClickListener { pickEndDate() }
@@ -126,14 +133,28 @@ class BookActivity : AppCompatActivity() {
             b.rating.value = bk.rating ?: 0
             updateRatingLabel(bk.rating ?: 0)
             b.etNotes.setText(bk.notes)
+            b.etUrl.setText(bk.url)
             genres = Book.splitGenres(bk.genres).toMutableList()
             updateGenres()
 
             showBookStats(bk)
             showReadings(bk)
 
+            // Цитаты книги
+            val nQuotes = db.quoteDao().countForBook(bk.id)
+            b.btnQuotes.visibility = if (nQuotes > 0) View.VISIBLE else View.GONE
+            b.btnQuotes.text = "цитаты: $nQuotes"
+            b.btnQuotes.setOnClickListener { com.readingtracker.ui.quotes.QuotesActivity.open(this@BookActivity, bk.id) }
+
             val launch = packageManager.getLaunchIntentForPackage(bk.appPackage)
-            if (launch != null) {
+            if (bk.appPackage == Book.PKG_ONLINE && bk.url.isNotBlank()) {
+                // Книга в интернете: открывается в браузере, трекер следит за адресом
+                b.btnOpenReader.visibility = View.VISIBLE
+                b.btnOpenReader.text = "Открыть в браузере"
+                b.btnOpenReader.setOnClickListener {
+                    com.readingtracker.service.WebReading.open(this@BookActivity, bk.id, bk.url)
+                }
+            } else if (launch != null) {
                 b.btnOpenReader.visibility = View.VISIBLE
                 b.btnOpenReader.text = "Открыть в ${bk.appName}"
                 b.btnOpenReader.setOnClickListener {
@@ -319,7 +340,8 @@ class BookActivity : AppCompatActivity() {
             endDate = endDate,
             rating = rating,
             notes = notes,
-            genres = Book.joinGenres(genres)
+            genres = Book.joinGenres(genres),
+            url = if (source.second == Book.PKG_ONLINE) b.etUrl.text?.toString()?.trim() ?: "" else (book?.url ?: "")
         ).let { bk ->
             if (b.manualTimeBlock.visibility != View.VISIBLE) bk
             else {

@@ -114,6 +114,12 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- Цитаты: все выписки по книгам, теги, выгрузка в Obsidian -->
+        <activity
+            android:name=".ui.quotes.QuotesActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Посредник: «Открыть с помощью → Трекер чтения» для fb2/epub -->
         <activity
             android:name=".opener.OpenBookActivity"

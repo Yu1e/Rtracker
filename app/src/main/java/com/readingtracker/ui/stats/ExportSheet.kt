@@ -128,6 +128,8 @@ class ExportSheet(
             check("статус, когда, источник", BookField.STATUS in fields) { toggle(fields, BookField.STATUS, it) }
             check("сколько времени, оценка", BookField.TIME in fields) { toggle(fields, BookField.TIME, it) }
             check("заметки", BookField.NOTES in fields) { toggle(fields, BookField.NOTES, it) }
+            check(if (single) "цитаты (отдельными заметками, название книги — ссылка)" else "цитаты (после сведений о книге)",
+                BookField.QUOTES in fields) { toggle(fields, BookField.QUOTES, it) }
         }
 
         label("какие книги")

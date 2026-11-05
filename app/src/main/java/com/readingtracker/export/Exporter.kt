@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.readingtracker.data.Book
+import com.readingtracker.data.Quote
 import com.readingtracker.data.Reading
 import com.readingtracker.data.Readings
 import com.readingtracker.data.ReadingSession
@@ -22,7 +23,7 @@ enum class TagPlace(val key: String) { YAML("yaml"), FIRST("first"), LAST("last"
 enum class StatsPart { SUMMARY, DAYS, BOOKS, WHEN, LISTS, SESSIONS }
 
 /** Что выводить в карточке книги. */
-enum class BookField { MAIN, STATUS, TIME, NOTES }
+enum class BookField { MAIN, STATUS, TIME, NOTES, QUOTES }
 
 data class ExportJob(
     val books: Boolean,
@@ -62,7 +63,8 @@ object Exporter {
         s.split(Regex("[,;\\s]+")).map { it.trim().trimStart('#') }.filter { it.isNotEmpty() }.distinct()
 
     fun build(job: ExportJob, allBooks: List<Book>, allSessions: List<ReadingSession>,
-              readings: List<Reading> = emptyList()): List<OutFile> {
+              readings: List<Reading> = emptyList(), quotes: List<Quote> = emptyList()): List<OutFile> {
+        quotesOf = quotes.groupBy { it.bookId }.mapValues { (_, l) -> l.sortedBy { it.createdAt } }
         // «читаю» включает перечитывание
         val st = if (Book.STATUS_READING in job.statuses) job.statuses + Book.STATUS_REREADING else job.statuses
         val books = allBooks.filter { it.status in st }
@@ -74,6 +76,30 @@ object Exporter {
         }.toMap()
         return if (job.books) bookFiles(job, books)
         else statsFiles(job, books, sessions, Readings.expand(books, sessions, readings))
+    }
+
+    /** Цитаты по книгам (старые сверху). */
+    private var quotesOf: Map<Long, List<Quote>> = emptyMap()
+
+    /**
+     * Цитаты книги простым текстом (формат ещё выбирается): цитата, под ней строка тегов,
+     * между цитатами пустая строка.
+     */
+    fun quotesText(list: List<Quote>): String = list.joinToString("\n\n") { q ->
+        val tags = Quote.splitTags(q.tags)
+        q.text.trim() + if (tags.isEmpty()) "" else "\n" + tags.joinToString(" ") { "#" + it.replace(' ', '_') }
+    } + "\n"
+
+    /** Заметки с цитатами: на каждую книгу с цитатами — файл с названием книги. */
+    fun quoteNotes(books: List<Book>, quotes: List<Quote>, tags: List<String> = emptyList(),
+                   tagPlace: TagPlace = TagPlace.YAML): List<OutFile> {
+        val by = quotes.groupBy { it.bookId }
+        val used = HashSet<String>()
+        val job = ExportJob(books = true, statuses = emptySet(), tags = tags, tagPlace = tagPlace)
+        return books.sortedByDescending { it.startDate }.mapNotNull { b ->
+            val list = by[b.id]?.sortedBy { it.createdAt } ?: return@mapNotNull null
+            OutFile(uniqueName(fileBase(b), used) + ".md", withTags(quotesText(list), job))
+        }
     }
 
     /** Прочтения перечитанных книг (для полей «Когда», «Сколько», «Всего»). */
@@ -169,17 +195,27 @@ object Exporter {
 
     private fun bookFiles(job: ExportJob, books: List<Book>): List<OutFile> {
         val sorted = books.sortedByDescending { it.startDate }
+        val withQuotes = BookField.QUOTES in job.fields
         if (job.singleFile) {
             val body = StringBuilder()
+            // Цитаты — отдельными заметками с названием книги; в общей заметке название книги — ссылка [[…]]
+            val used = hashSetOf("книги")
+            val quoteFiles = mutableListOf<OutFile>()
             for (b in sorted) {
-                val name = oneLine(b.title).ifBlank { oneLine(b.author).ifBlank { "Без названия" } }
+                var name = oneLine(b.title).ifBlank { oneLine(b.author).ifBlank { "Без названия" } }
+                val qs = quotesOf[b.id]
+                if (withQuotes && !qs.isNullOrEmpty()) {
+                    val file = uniqueName(fileBase(b), used)
+                    quoteFiles += OutFile("$file.md", withTags(quotesText(qs), job))
+                    name = if (file == name) "[[$file]]" else "[[$file|$name]]"
+                }
                 val parts = fields(b, job.fields, withTitle = false).toMutableList()
                 if (BookField.NOTES in job.fields) parts += "(Заметки:: ${oneLine(b.notes)})"
                 body.append("- ").append(name)
                 if (parts.isNotEmpty()) body.append(' ').append(parts.joinToString(" "))
                 body.append("\n\n")
             }
-            return listOf(OutFile("Книги.md", withTags(body.toString().trimEnd('\n') + "\n", job)))
+            return listOf(OutFile("Книги.md", withTags(body.toString().trimEnd('\n') + "\n", job))) + quoteFiles
         }
         val used = HashSet<String>()
         return sorted.map { b ->
@@ -189,6 +225,9 @@ object Exporter {
                 body.append("\n##### Заметки\n")
                 if (b.notes.isNotBlank()) body.append(b.notes.trim()).append('\n')
             }
+            // Цитаты — в той же заметке, после сведений о книге
+            val qs = quotesOf[b.id]
+            if (withQuotes && !qs.isNullOrEmpty()) body.append("\n##### Цитаты\n\n").append(quotesText(qs))
             OutFile(uniqueName(fileBase(b), used) + ".md", withTags(body.toString(), job))
         }
     }

@@ -156,11 +156,24 @@ class HomeFragment : Fragment() {
         val readName = readers.firstOrNull { it.key == readPkg }?.value
             ?: book?.appName?.takeIf { it.isNotBlank() } ?: "читалка не найдена"
         // Бумажная книга (онлайн, другое) сверху стопки: «читать» запускает таймер, читалка не открывается
-        val offPhone = book != null && book.appPackage in OFF_PHONE
+        // Книга «В интернете» с адресом: «читать» открывает её в браузере, трекер следит за адресом
+        val web = book != null && book.appPackage == Book.PKG_ONLINE && book.url.isNotBlank()
+        val offPhone = book != null && book.appPackage in OFF_PHONE && !web
         fun timerLabel() = if (book != null && ManualTimer.isRunningFor(book.id)) "остановить таймер" else "запуск таймера"
-        b.btnRead.setReader(if (offPhone) timerLabel() else readName)
+        b.btnRead.setReader(when {
+            web -> com.readingtracker.service.WebReading.browserName(ctx)
+            offPhone -> timerLabel()
+            else -> readName
+        })
         b.btnRead.setOnClickListener {
-            if (offPhone && book != null) {
+            if (web && book != null) {
+                if (launching) return@setOnClickListener
+                launching = true
+                b.btnRead.postDelayed({
+                    launching = false
+                    com.readingtracker.service.WebReading.open(ctx, book.id, book.url)
+                }, if (RtTheme.motion(ctx)) READ_DELAY_MS else 0L)
+            } else if (offPhone && book != null) {
                 if (launching) return@setOnClickListener
                 launching = true
                 b.btnRead.postDelayed({
