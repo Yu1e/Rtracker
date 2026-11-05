@@ -46,6 +46,10 @@ object Prefs {
         p(c).edit().putString("export_tags", tags).putString("export_tag_place", place).apply()
     }
 
+    // Когда служба отслеживания последний раз была жива (для закрытия сеанса после падения)
+    fun lastAlive(c: Context): Long = p(c).getLong("last_alive", 0L)
+    fun setLastAlive(c: Context, t: Long) { p(c).edit().putLong("last_alive", t).apply() }
+
     fun backupFolder(c: Context): Uri? =
         p(c).getString("backup_folder", null)?.let { Uri.parse(it) }
 

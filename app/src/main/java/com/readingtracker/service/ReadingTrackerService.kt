@@ -100,6 +100,8 @@ class ReadingTrackerService : Service() {
     private var formOpen = false
     private val autoAsk = Runnable { if (unassignedPkg != null && !formOpen) openForm() }
 
+    private var lastAliveSaved = 0L
+
     // Пауза «ещё выбираю»: читалка, в которой выбирают книгу; время не идёт
     private var choosing: String? = null
     private val chooseAsk = Runnable { postChooseQuestion() }
@@ -147,6 +149,9 @@ class ReadingTrackerService : Service() {
                     checkScreen()
                 }
                 Diag.set(this@ReadingTrackerService, Diag.HEARTBEAT, Diag.time())
+                // Отметка «служба жива» — для закрытия сеанса после падения
+                val now = System.currentTimeMillis()
+                if (now - lastAliveSaved > 20_000) { lastAliveSaved = now; Prefs.setLastAlive(this@ReadingTrackerService, now) }
             } catch (e: Exception) {
                 Diag.set(this@ReadingTrackerService, Diag.ERROR, "${Diag.time()} опрос: $e")
             }
@@ -172,7 +177,10 @@ class ReadingTrackerService : Service() {
         // Закрываем сессию, оставшуюся открытой после падения процесса
         scope.launch {
             db.sessionDao().getOpenSession()?.let { orphan ->
-                val end = System.currentTimeMillis()
+                // Конец — когда служба последний раз была жива, а не сейчас: иначе в сеанс
+                // попадёт всё время, пока трекер не работал
+                val alive = Prefs.lastAlive(this@ReadingTrackerService)
+                val end = minOf(System.currentTimeMillis(), maxOf(orphan.startTime, alive))
                 db.sessionDao().updateSession(orphan.copy(endTime = end))
                 accumulateTime(orphan.bookId, orphan.startTime, end)
             }
@@ -224,7 +232,8 @@ class ReadingTrackerService : Service() {
         handler.removeCallbacks(chooseAsk)
         cancelChooseQuestion()
         unregisterReceiver(screenReceiver)
-        pauseSession()
+        // Сеанс закрывается сразу, до остановки службы: фоновую запись остановка могла бы оборвать
+        closeSessionNow()
         if (manual) endManualMode(notify = false)
         overlay.hide()
         scope.cancel()
@@ -254,7 +263,8 @@ class ReadingTrackerService : Service() {
         scope.launch {
             manualPkg = db.bookDao().getBookById(bookId)?.appPackage ?: Book.PKG_OTHER
             withContext(Dispatchers.Main) {
-                startSessionInternal(bookId, manualPkg)
+                // Таймер могли уже выключить, пока читалась книга из базы
+                if (manual && activeBookId == bookId) startSessionInternal(bookId, manualPkg)
                 updateNotification()
             }
         }
@@ -747,31 +757,55 @@ class ReadingTrackerService : Service() {
 
     // ── Сессии ────────────────────────────────────────────────────────────────
 
+    /**
+     * Номер «поколения» сеанса: растёт при каждой паузе. Сеанс, который начал записываться
+     * до паузы (запись в базу идёт не сразу), закрывается тут же и время не набирает.
+     */
+    @Volatile private var sessionGen = 0
+
     private fun startSessionInternal(bookId: Long, pkg: String) {
         sessionResumedAt = System.currentTimeMillis()
+        val gen = sessionGen
         scope.launch {
             if (activeSessionId != null) return@launch
-            val session = ReadingSession(
-                bookId = bookId,
-                startTime = System.currentTimeMillis(),
-                appPackage = pkg
-            )
-            activeSessionId = db.sessionDao().insertSession(session)
+            val start = System.currentTimeMillis()
+            val id = db.sessionDao().insertSession(ReadingSession(bookId = bookId, startTime = start, appPackage = pkg))
+            if (gen != sessionGen || activeBookId != bookId) {
+                // Пока сеанс записывался, его уже остановили (например, таймер нажали и сразу выключили)
+                db.sessionDao().getSessionById(id)?.let { db.sessionDao().updateSession(it.copy(endTime = it.startTime)) }
+            } else activeSessionId = id
         }
     }
 
     private fun pauseSession(endAt: Long = System.currentTimeMillis()) {
+        sessionGen++
         val sessionId = activeSessionId ?: return
         activeSessionId = null
-        val bookId = activeBookId ?: return
-
+        // Книга — из самого сеанса: activeBookId к этому моменту мог уже смениться или обнулиться
         scope.launch {
             val session = db.sessionDao().getSessionById(sessionId) ?: return@launch
+            if (session.endTime != null) return@launch
             val endTime = maxOf(session.startTime, endAt)
             db.sessionDao().updateSession(session.copy(endTime = endTime))
-            accumulateTime(bookId, session.startTime, endTime)
+            accumulateTime(session.bookId, session.startTime, endTime)
             WidgetUpdater.update(this@ReadingTrackerService)
         }
+    }
+
+    private fun closeSessionNow() {
+        sessionGen++
+        val id = activeSessionId ?: return
+        activeSessionId = null
+        val end = System.currentTimeMillis()
+        try {
+            runBlocking(Dispatchers.IO) {
+                val session = db.sessionDao().getSessionById(id) ?: return@runBlocking
+                if (session.endTime != null) return@runBlocking
+                val endTime = maxOf(session.startTime, end)
+                db.sessionDao().updateSession(session.copy(endTime = endTime))
+                accumulateTime(session.bookId, session.startTime, endTime)
+            }
+        } catch (_: Exception) {}
     }
 
     private suspend fun accumulateTime(bookId: Long, startTime: Long, endTime: Long) {
