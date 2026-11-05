@@ -28,6 +28,7 @@ import com.readingtracker.rewards.Celebrations
 import com.readingtracker.ui.RtTheme
 import com.readingtracker.ui.Fonts
 import com.readingtracker.ui.RtColors
+import com.readingtracker.service.ManualTimer
 import com.readingtracker.ui.book.BookActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -64,9 +65,18 @@ class HomeFragment : Fragment() {
         }
     }
 
+    // Таймер включили или выключили (и кнопкой в меню) — обновить подпись под «читать»
+    private val timerChanged: () -> Unit = { if (_b != null && isResumed) load() }
+
     override fun onResume() {
         super.onResume()
+        ManualTimer.addListener(timerChanged)
         load()
+    }
+
+    override fun onPause() {
+        ManualTimer.removeListener(timerChanged)
+        super.onPause()
     }
 
     private fun load() {
@@ -142,9 +152,24 @@ class HomeFragment : Fragment() {
         val readPkg = book?.appPackage?.takeIf { pkg -> readers.any { it.key == pkg } } ?: readers.firstOrNull()?.key
         val readName = readers.firstOrNull { it.key == readPkg }?.value
             ?: book?.appName?.takeIf { it.isNotBlank() } ?: "читалка не найдена"
-        b.btnRead.setReader(readName)
+        // Бумажная книга (онлайн, другое) сверху стопки: «читать» запускает таймер, читалка не открывается
+        val offPhone = book != null && book.appPackage in OFF_PHONE
+        fun timerLabel() = if (book != null && ManualTimer.isRunningFor(book.id)) "остановить таймер" else "запуск таймера"
+        b.btnRead.setReader(if (offPhone) timerLabel() else readName)
         b.btnRead.setOnClickListener {
-            if (readPkg == null) {
+            if (offPhone && book != null) {
+                if (launching) return@setOnClickListener
+                launching = true
+                b.btnRead.postDelayed({
+                    launching = false
+                    if (ManualTimer.isRunningFor(book.id)) ManualTimer.stop(ctx)
+                    else {
+                        ManualTimer.start(ctx, book.id)
+                        Toast.makeText(ctx, ManualTimer.hint(), Toast.LENGTH_LONG).show()
+                    }
+                    _b?.btnRead?.postDelayed({ _b?.btnRead?.setReader(timerLabel()) }, 400)
+                }, if (RtTheme.motion(ctx)) READ_DELAY_MS else 0L)
+            } else if (readPkg == null) {
                 Toast.makeText(ctx, "Читалки не найдены", Toast.LENGTH_SHORT).show()
             } else if (!launching) {
                 // Эффект успевает доиграть: читалка открывается через 0,8 с
@@ -215,6 +240,8 @@ class HomeFragment : Fragment() {
 
     companion object {
         private const val READ_DELAY_MS = 800L
+        /** Книги не в телефонной читалке: «читать» для них — таймер. */
+        val OFF_PHONE = setOf(Book.PKG_PAPER, Book.PKG_ONLINE, Book.PKG_OTHER)
         private val MONTHS_GEN = arrayOf(
             "января", "февраля", "марта", "апреля", "мая", "июня",
             "июля", "августа", "сентября", "октября", "ноября", "декабря"

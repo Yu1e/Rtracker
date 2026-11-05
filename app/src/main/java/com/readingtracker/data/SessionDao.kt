@@ -42,6 +42,9 @@ interface SessionDao {
     @Query("SELECT * FROM reading_sessions ORDER BY startTime ASC")
     suspend fun getAllSessions(): List<ReadingSession>
 
+    @Query("DELETE FROM reading_sessions WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
     @Query("DELETE FROM reading_sessions WHERE bookId = :bookId")
     suspend fun deleteForBook(bookId: Long)
 

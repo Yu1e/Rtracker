@@ -107,9 +107,19 @@ class HomeEinkFragment : Fragment() {
         val readPkg = book?.appPackage?.takeIf { pkg -> readers.any { it.key == pkg } } ?: readers.firstOrNull()?.key
         val readName = readers.firstOrNull { it.key == readPkg }?.value
             ?: book?.appName?.takeIf { it.isNotBlank() } ?: "читалка не найдена"
-        b.btnRead.setReader(readName)
+        // Бумажная книга сверху: «читать» запускает таймер
+        val offPhone = book != null && book.appPackage in HomeFragment.OFF_PHONE
+        b.btnRead.setReader(if (!offPhone) readName
+            else if (book != null && ManualTimer.isRunningFor(book.id)) "остановить таймер" else "запуск таймера")
         b.btnRead.setOnClickListener {
-            if (readPkg == null) {
+            if (offPhone && book != null) {
+                if (ManualTimer.isRunningFor(book.id)) ManualTimer.stop(ctx)
+                else {
+                    ManualTimer.start(ctx, book.id)
+                    Toast.makeText(ctx, ManualTimer.hint(), Toast.LENGTH_LONG).show()
+                }
+                _b?.root?.postDelayed({ if (_b != null) load() }, 400)
+            } else if (readPkg == null) {
                 Toast.makeText(ctx, "Читалки не найдены", Toast.LENGTH_SHORT).show()
             } else {
                 if (book != null && book.appPackage == readPkg) Prefs.setPendingBook(ctx, readPkg, book.id)

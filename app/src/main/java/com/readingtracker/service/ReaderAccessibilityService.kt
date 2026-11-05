@@ -157,6 +157,12 @@ class ReaderAccessibilityService : AccessibilityService() {
             val src = event.source
             val id = src?.viewIdResourceName?.substringAfter(":id/")
             if (id == "propertymenu_read" || clickText(event).split(' ').any { it == "Читать" }) readPressed(pkg)
+            // Книга открыта прямо из списка файлов: «Автор • Название | zip …» — сразу открыта
+            event.text?.map { it?.toString() ?: "" }?.firstOrNull { it.contains(" • ") }?.let { line ->
+                val author = line.substringBefore(" • ").trim()
+                val title = line.substringAfter(" • ").trim()
+                if (title.isNotEmpty()) { choose(pkg, title, author.ifEmpty { null }); readPressed(pkg) }
+            }
             return
         }
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
@@ -174,12 +180,27 @@ class ReaderAccessibilityService : AccessibilityService() {
                 ?.let { ReaderScreen.rememberGenres(this, title, it) }
         }
 
+        // Оглавление (AlReader3TreeContent): первая строка — название открытой книги
+        if (ids(pkg, root, "contentmenu_expand").isNotEmpty()) {
+            ids(pkg, root, "textFileList0").firstNotNullOfOrNull { it.desc() ?: it.str() }
+                ?.let { ReaderScreen.seeTitle(pkg, it) }
+        }
+
+        // Список файлов: «Автор • Название» в textFileList3
+        for (n in ids(pkg, root, "textFileList3").take(40)) {
+            val line = n.str() ?: continue
+            if (!line.contains(" • ")) continue
+            ReaderScreen.rememberAuthor(this, line.substringAfter(" • ").trim(), line.substringBefore(" • ").trim())
+        }
+
         // Библиотека: пары «название — автор» в одной строке списка
         for (n in ids(pkg, root, "textFileList0").take(40)) {
             val t = n.desc() ?: n.str() ?: continue
             if (t == "..") continue
             val parent = n.parent ?: continue
             val author = ids(pkg, parent, "textFileList3").firstNotNullOfOrNull { it.str() } ?: continue
+            // В списке файлов здесь «Автор • Название», а в textFileList0 — имя файла: эта пара не годится
+            if (author.contains(" • ")) continue
             ReaderScreen.rememberAuthor(this, t, author)
             ids(pkg, parent, "textFileList4").firstNotNullOfOrNull { it.str() }
                 ?.let { ReaderScreen.rememberGenres(this, t, it) }

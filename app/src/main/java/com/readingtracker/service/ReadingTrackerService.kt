@@ -34,6 +34,9 @@ class ReadingTrackerService : Service() {
         /** Ручной таймер на паузе дольше этого — останавливается. */
         const val MANUAL_GIVE_UP_MS = 20 * 60_000L
 
+        /** Сеанс короче этого — случайный, не записывается. */
+        const val SHORT_MS = 30_000L
+
         /** Пауза «ещё выбираю»: вопрос «считать?» приходит через столько времени. */
         const val CHOOSE_EVERY_MS = 5 * 60_000L
 
@@ -771,8 +774,9 @@ class ReadingTrackerService : Service() {
             val start = System.currentTimeMillis()
             val id = db.sessionDao().insertSession(ReadingSession(bookId = bookId, startTime = start, appPackage = pkg))
             if (gen != sessionGen || activeBookId != bookId) {
-                // Пока сеанс записывался, его уже остановили (например, таймер нажали и сразу выключили)
-                db.sessionDao().getSessionById(id)?.let { db.sessionDao().updateSession(it.copy(endTime = it.startTime)) }
+                // Пока сеанс записывался, его уже остановили (например, таймер нажали и сразу выключили):
+                // такой сеанс не нужен вовсе — ни в «подходах», ни в «последний раз»
+                db.sessionDao().deleteById(id)
             } else activeSessionId = id
         }
     }
@@ -786,6 +790,8 @@ class ReadingTrackerService : Service() {
             val session = db.sessionDao().getSessionById(sessionId) ?: return@launch
             if (session.endTime != null) return@launch
             val endTime = maxOf(session.startTime, endAt)
+            // Сеанс короче полуминуты — случайный (открыли и сразу закрыли): не записывается
+            if (endTime - session.startTime < SHORT_MS) { db.sessionDao().deleteById(sessionId); return@launch }
             db.sessionDao().updateSession(session.copy(endTime = endTime))
             accumulateTime(session.bookId, session.startTime, endTime)
             WidgetUpdater.update(this@ReadingTrackerService)
@@ -802,6 +808,7 @@ class ReadingTrackerService : Service() {
                 val session = db.sessionDao().getSessionById(id) ?: return@runBlocking
                 if (session.endTime != null) return@runBlocking
                 val endTime = maxOf(session.startTime, end)
+                if (endTime - session.startTime < SHORT_MS) { db.sessionDao().deleteById(id); return@runBlocking }
                 db.sessionDao().updateSession(session.copy(endTime = endTime))
                 accumulateTime(session.bookId, session.startTime, endTime)
             }
