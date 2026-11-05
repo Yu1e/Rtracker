@@ -156,7 +156,6 @@ class QuotesActivity : AppCompatActivity() {
         (onlyBook == null || q.bookId == onlyBook) &&
             (t == null || (t == TAG_DRAFT && q.draft) || Quote.splitTags(q.tags).contains(t)) &&
             (query.isEmpty() || q.text.contains(query, true) || q.tags.contains(query, true))
-    }
 
     private fun render() {
         val one = onlyBook?.let { id -> books.firstOrNull { it.id == id } }
