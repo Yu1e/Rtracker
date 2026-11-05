@@ -4,8 +4,8 @@ import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
-import android.text.style.RelativeSizeSpan
-import android.text.style.SuperscriptSpan
+import android.text.TextPaint
+import android.text.style.MetricAffectingSpan
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -54,6 +54,9 @@ class HomeFragment : Fragment() {
         b.bookCover.reshuffle()
         b.shelf.reshuffle()
         b.streakGlass.reshuffle()
+        // Книга со своими ляссе — над плитками: хвост, вышедший за книгу, лежит поверх стекла, а не под ним
+        (b.bookCover.parent as View).translationZ = 1f
+        b.bookCover.translationZ = 1f
         // «сегодня за книгой» ведёт на статистику
         b.ringTile.setOnClickListener { (activity as? com.readingtracker.MainActivity)?.goToStats(com.readingtracker.ui.stats.StatsFragment.SEC_SUMMARY) }
         // Столбики недели — в раздел «по дням»
@@ -134,11 +137,11 @@ class HomeFragment : Fragment() {
         if (d.pending > 0) {
             val start = count.length
             count.append("+${d.pending}")
-            count.setSpan(RelativeSizeSpan(0.62f), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            count.setSpan(SuperscriptSpan(), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            // Крупно (0,8 от числа) и чуть приподнято: обычный верхний индекс при таком размере обрезался бы сверху
+            count.setSpan(RaiseSpan(0.8f, 0.24f), start, count.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             // На тёмном фоне цифра после плюса светлая, иначе тёмное на тёмном
             val plusColor = when {
-                !RtColors.isNight(ctx) -> col(R.color.rt_ink3)
+                !RtColors.isNight(ctx) -> col(R.color.rt_ink2)
                 RtTheme.isGlass(ctx) -> 0xFFC9B6FF.toInt()
                 else -> col(R.color.rt_ink2)
             }
@@ -182,7 +185,8 @@ class HomeFragment : Fragment() {
                 }, delay)
             }
         }
-        buildReaders(readers.map { it.key to it.value })
+        // В ряду «Свет» первым, остальные как были
+        buildReaders(readers.sortedBy { if (it.value == "Свет") 0 else 1 }.map { it.key to it.value })
 
         // Сегодня за книгой
         val goal = Prefs.goalMinutes(ctx)
@@ -216,8 +220,10 @@ class HomeFragment : Fragment() {
         val btnBg = RtTheme.resId(ctx, R.attr.rtReaderBtn)
         readers.forEachIndexed { i, (pkg, name) ->
             val tv = TextView(ctx).apply {
-                text = name
+                // «Яндекс Книги» в две строки, иначе не помещается
+                text = if (name == "Яндекс Книги") "Яндекс\nКниги" else name
                 gravity = Gravity.CENTER
+                setLineSpacing(0f, 0.9f)
                 setTextColor(col(R.color.rt_ink))
                 setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13f)
                 typeface = Fonts.regular(ctx)
@@ -236,6 +242,17 @@ class HomeFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _b = null
+    }
+
+    /** Часть числа меньшим кеглем (size) и приподнятая на rise от основного кегля. */
+    private class RaiseSpan(private val size: Float, private val rise: Float) : MetricAffectingSpan() {
+        override fun updateDrawState(tp: TextPaint) = shift(tp)
+        override fun updateMeasureState(tp: TextPaint) = shift(tp)
+        private fun shift(tp: TextPaint) {
+            val base = tp.textSize
+            tp.textSize = base * size
+            tp.baselineShift -= (base * rise).toInt()
+        }
     }
 
     companion object {

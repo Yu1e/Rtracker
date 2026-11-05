@@ -86,7 +86,7 @@ object BackupManager {
                 title = o.optString("title"),
                 author = o.optString("author"),
                 appPackage = o.optString("appPackage"),
-                appName = o.optString("appName"),
+                appName = o.optString("appName").let { if (it == "Онлайн") "В интернете" else it },
                 startDate = o.getLong("startDate"),
                 endDate = o.optLongOrNull("endDate"),
                 status = o.optString("status", Book.STATUS_READING),

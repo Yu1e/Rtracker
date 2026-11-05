@@ -19,10 +19,10 @@
     <color name="gl_ring_track2">#14FFFFFF</color>
     <color name="gl_ring_prog2">#FF6FB5</color>
     <color name="gl_bar0">#26FFFFFF</color>
-    <color name="gl_bar1">#4B3F9A</color>
-    <color name="gl_bar2">#6E57D9</color>
-    <color name="gl_bar3">#9A7BFF</color>
-    <color name="gl_bar4">#C9B6FF</color>
+    <color name="gl_bar1">#D9CFFF</color>
+    <color name="gl_bar2">#B39DFF</color>
+    <color name="gl_bar3">#8A66FF</color>
+    <color name="gl_bar4">#6236F0</color>
     <color name="gl_bar_zero_text">#6E6893</color>
     <color name="gl_cover">#2B2748</color>
     <color name="gl_cover_stroke">#BDB6E0</color>

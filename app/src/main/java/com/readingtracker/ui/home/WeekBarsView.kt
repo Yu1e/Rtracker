@@ -69,7 +69,10 @@ class WeekBarsView @JvmOverloads constructor(
         canvas.save(); canvas.scale(d, d)
         val wDp = width / d; val hDp = height / d
         val gap = 5f
-        val colW = (wDp - gap * 6) / 7f
+        // Запас по краям, чтобы рамка сегодняшнего дня у крайнего столбика не обрезалась
+        val side = 1.5f
+        val colW = (wDp - 2 * side - gap * 6) / 7f
+        // Столбик уже колонки: рамка сегодняшнего дня отходит от него сбоку так же, как сверху (5)
         val max = max(values.maxOrNull() ?: 0, 1)
         // Корона — лучшему дню недели, когда есть с чем сравнить: хотя бы два дня с чтением
         val best = if (crownOn && values.count { it > 0 } >= 2) values.indexOfFirst { it == values.maxOrNull() } else -1
@@ -78,12 +81,12 @@ class WeekBarsView @JvmOverloads constructor(
 
         for (i in 0 until 7) {
             val v = values[i]
-            val x0 = i * (colW + gap)
+            val x0 = side + i * (colW + gap)
             val cx = x0 + colW / 2
             val r = v / max.toFloat()
             val barH = if (v == 0) 3f else max(14f, (r * 72f).roundToInt().toFloat())
             val barTop = barBottom - barH
-            val bar = RectF(x0 + 3f, barTop, x0 + colW - 3f, barBottom)
+            val bar = RectF(x0 + BAR_INSET, barTop, x0 + colW - BAR_INSET, barBottom)
             val fillColor = when {
                 v == 0 -> col(R.color.rt_bar0)
                 r > 0.75f -> col(R.color.rt_bar4)
@@ -133,11 +136,19 @@ class WeekBarsView @JvmOverloads constructor(
                 // Одна рамка вокруг всего дня: число, столбик и подпись
                 stroke.color = todayColor()
                 stroke.strokeWidth = 1.8f
-                val frameTop = min(numTop, barTop) - 5f
-                canvas.drawRoundRect(RectF(x0 + 0.9f, frameTop, x0 + colW - 0.9f, hDp - 0.9f), 9f, 9f, stroke)
+                val frameTop = min(numTop, barTop) - FRAME_PAD
+                val fl = x0 + BAR_INSET - FRAME_PAD; val fr = x0 + colW - BAR_INSET + FRAME_PAD
+                canvas.drawRoundRect(RectF(fl, frameTop, fr, hDp - 0.9f), 9f, 9f, stroke)
                 stroke.strokeWidth = 1.5f
             }
         }
         canvas.restore()
+    }
+
+    private companion object {
+        /** Отступ столбика от края колонки. */
+        const val BAR_INSET = 5f
+        /** Отступ рамки сегодняшнего дня от числа сверху и от столбика с боков. */
+        const val FRAME_PAD = 5f
     }
 }

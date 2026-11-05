@@ -294,12 +294,21 @@ class StatsFragment : Fragment() {
         }
 
         // Календарь
-        card(SEC_CALENDAR, "календарь", note)
-        // Месяц клетками по дням недели: в прошедших днях минуты, в будущих — числа; тыц — дата и время
+        val calSub = card(SEC_CALENDAR, "календарь", note)
+        // Месяц клетками по дням недели: в прошедших днях минуты, в будущих — числа; тыц — дата и время.
+        // Палец вбок листает месяцы (вперёд — не дальше текущего); у прошлого месяца справа его название
         val heat = com.readingtracker.stats.MonthGridView(ctx)
         val dayInfo = smallView("")
         dayInfo.visibility = View.GONE
         heat.setData(s.dayMinutes, s.today)
+        heat.onMonthChanged = { ym, isCurrent ->
+            dayInfo.visibility = View.GONE
+            val name = if (isCurrent) null else "${MONTHS_NOM[ym.monthValue - 1]} ${ym.year}"
+            val text = listOfNotNull(name, note).joinToString("  ·  ")
+            calSub.text = text
+            calSub.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
+            if (name != null) calSub.setTextColor(ink()) else calSub.setTextColor(col(R.color.rt_ink3))
+        }
         heat.onDaySelected = { day, m ->
             dayInfo.visibility = View.VISIBLE
             dayInfo.text = "${day.format(DateTimeFormatter.ofPattern("d MMMM, EEEE", Locale("ru")))}: " +
@@ -459,7 +468,8 @@ class StatsFragment : Fragment() {
     // ── Карточки и строки ─────────────────────────────────────────────────────
 
     /** Новая карточка-раздел: матовое стекло, ч/б плитка или рамка чернил — по оформлению. */
-    private fun card(key: String, title: String, sub: String?) {
+    /** Карточка раздела; возвращает подпись справа от названия (пустая скрыта). */
+    private fun card(key: String, title: String, sub: String?): TextView {
         val ctx = requireContext()
         val box = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -471,13 +481,16 @@ class StatsFragment : Fragment() {
         head.addView(TextView(ctx).apply {
             text = title; textSize = 16f; setTypeface(typeface, Typeface.BOLD); setTextColor(ink())
         }, LinearLayout.LayoutParams(0, -2, 1f))
-        if (sub != null) head.addView(TextView(ctx).apply {
-            text = sub; textSize = 12f; setTextColor(col(R.color.rt_ink3)); gravity = Gravity.END
-        })
+        val subView = TextView(ctx).apply {
+            text = sub ?: ""; textSize = 12f; setTextColor(col(R.color.rt_ink3)); gravity = Gravity.END
+            visibility = if (sub == null) View.GONE else View.VISIBLE
+        }
+        head.addView(subView)
         box.addView(head, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = (8 * dp).toInt() })
         b.container.addView(box, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = (10 * dp).toInt() })
         sections[key] = box
         cur = box
+        return subView
     }
 
     private fun smallView(text: String) = TextView(requireContext()).apply {

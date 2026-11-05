@@ -72,7 +72,7 @@ object Constants {
             "AlReader" to pkgFor("AlReader", "com.neverland.alreader"),
             "Свет" to pkgFor("Свет", "ru.rsl.svetApp"),
             "Бумажная книга" to com.readingtracker.data.Book.PKG_PAPER,
-            "Онлайн" to com.readingtracker.data.Book.PKG_ONLINE,
+            "В интернете" to com.readingtracker.data.Book.PKG_ONLINE,
             "Другое" to com.readingtracker.data.Book.PKG_OTHER
         )
     }

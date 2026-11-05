@@ -3,7 +3,6 @@ package com.readingtracker.ui.book
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
@@ -23,7 +22,7 @@ import kotlin.random.Random
 
 /**
  * Оценка-волна: на левом краю незажжённая звезда — «без оценки», дальше десять звёзд по пологой
- * волне: в левой половине провал вниз (плохие, красный → жёлтый), в правой подъём (хорошие,
+ * волне (сама линия волны не рисуется, её выстраивают звёзды): в левой половине провал вниз (плохие, красный → жёлтый), в правой подъём (хорошие,
  * мятный → голубой → синий → фиолетовый). Палец ведут слева направо где угодно над шкалой —
  * звёзды зажигаются по одной: вспыхивают, светятся, переливаются и рассыпают звёздочки.
  */
@@ -62,7 +61,6 @@ class RatingWaveView @JvmOverloads constructor(
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
-    private val path = Path()
     private val star = Path()
 
     init {
@@ -77,8 +75,8 @@ class RatingWaveView @JvmOverloads constructor(
     // ── Геометрия ────────────────────────────────────────────────────────────
 
     private val pad get() = 16 * d
-    /** Пологая волна: невысокий провал и такой же подъём. */
-    private val amp get() = 11 * d
+    /** Совсем пологая волна: неглубокий провал и такой же подъём. */
+    private val amp get() = 7 * d
     private val mid get() = height / 2f + 4 * d
 
     private fun xAt(t: Float) = pad + t * (width - 2 * pad)
@@ -123,36 +121,10 @@ class RatingWaveView @JvmOverloads constructor(
         if (width == 0) return
         val now = SystemClock.uptimeMillis()
         val ink = RtColors.c(context, R.color.rt_ink)
-        val dim = RtColors.withAlpha(ink, if (RtColors.isNight(context)) 0.22f else 0.16f)
+        // Без оси незажжённые звёзды — единственная подсказка, где шкала: контур заметнее прежнего
+        val dim = RtColors.withAlpha(ink, if (RtColors.isNight(context)) 0.36f else 0.28f)
 
-        // Волна целиком — бледная
-        path.reset()
-        for (k in 0..100) {
-            val t = k / 100f
-            if (k == 0) path.moveTo(xAt(t), yAt(t)) else path.lineTo(xAt(t), yAt(t))
-        }
-        line.shader = null; line.color = dim; line.strokeWidth = 5 * d
-        canvas.drawPath(path, line)
-
-        // Зажжённая часть — радугой от красного к фиолетовому, со свечением
-        if (value > 0) {
-            canvas.save()
-            canvas.clipRect(0f, 0f, xAt(tOf(value)), height.toFloat())
-            if (eink) {
-                line.color = Color.BLACK; line.strokeWidth = 5 * d
-                canvas.drawPath(path, line)
-            } else {
-                line.shader = LinearGradient(pad, 0f, width - pad, 0f, COLORS, null, Shader.TileMode.CLAMP)
-                line.strokeWidth = 12 * d; line.alpha = 70
-                canvas.drawPath(path, line)
-                line.strokeWidth = 5 * d; line.alpha = 255
-                canvas.drawPath(path, line)
-                line.shader = null
-            }
-            canvas.restore()
-        }
-
-        // Звёзды
+        // Звёзды (оси нет: волну выстраивают сами звёзды)
         var animating = false
         for (i in 0..10) {
             val cx = xAt(tOf(i)); val cy = yAt(tOf(i))

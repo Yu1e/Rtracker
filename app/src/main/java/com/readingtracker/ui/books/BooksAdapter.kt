@@ -34,6 +34,8 @@ class BooksAdapter(
             b.tvTitle.text = book.title.ifBlank { "Без названия" }
             b.tvAuthor.text = book.author.ifBlank { "Автор не указан" }
             b.tvAsk.visibility = if (BookActions.isStatusDue(book)) View.VISIBLE else View.GONE
+            // Свиток с пером — у книги есть мои заметки
+            b.notesBadge.visibility = if (book.notes.isNotBlank()) View.VISIBLE else View.GONE
 
             val status = Book.statusLabel(book.status)
             val rating = book.rating?.let { "  ·  ★ $it/10" } ?: ""
