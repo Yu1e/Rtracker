@@ -98,6 +98,7 @@ class ReaderAccessibilityService : AccessibilityService() {
             "ЛитРес" -> try { litres(pkg, event) } catch (_: Exception) {}
             "AlReader" -> try { alreader(pkg, event) } catch (_: Exception) {}
             "Свет" -> try { svet(pkg, event) } catch (_: Exception) {}
+            "Яндекс Книги" -> try { yandex(pkg, event) } catch (_: Exception) {}
         }
     }
 
@@ -250,6 +251,49 @@ class ReaderAccessibilityService : AccessibilityService() {
         for (k in 0 until node.childCount) collectDescs(node.getChild(k) ?: continue, out, depth + 1)
     }
 
+    // ── Яндекс Книги (журнал разведки 6 ноября 2026) ─────────────────────────
+    // Читалка (Reader2Activity): вверху «Закрыть читалку» (описание), за ним два текста без id —
+    // название и автор; видны при открытии книги и в меню. Страниц нет, только «12% от всей книги».
+    // Библиотека и «Мои книги»: описание обложки «Имя розы. Автор Умберто Эко. Обложка[. Прогресс: …]».
+
+    private val YANDEX_COVER = Regex("^(.+?)\\. Автор (.+?)\\. Обложка")
+
+    private fun yandex(pkg: String, event: AccessibilityEvent) {
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+            event.eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED) return
+        if (throttled(pkg)) return
+        val root = rootInActiveWindow ?: return
+        val nodes = mutableListOf<Pair<Boolean, String>>()   // (описание?, значение)
+        collectYandex(root, nodes, 0)
+
+        // Читалка: два текста сразу за «Закрыть читалку»
+        val close = nodes.indexOfFirst { it.first && it.second == "Закрыть читалку" }
+        if (close >= 0) {
+            val texts = nodes.drop(close + 1).takeWhile { !(it.first && it.second == "Ещё") }.filter { !it.first }.map { it.second }
+            val title = texts.getOrNull(0)?.takeIf { it.length in 1..200 }
+            val author = texts.getOrNull(1)?.takeIf { it.length in 2..80 && !it.first().isDigit() }
+            if (title != null) {
+                if (author != null) ReaderScreen.rememberAuthor(this, title, author)
+                ReaderScreen.seeTitle(pkg, title)
+            }
+        }
+
+        // Обложки в библиотеке: название и автор
+        for ((isDesc, v) in nodes) {
+            if (!isDesc) continue
+            val m = YANDEX_COVER.find(v) ?: continue
+            ReaderScreen.rememberAuthor(this, m.groupValues[1].trim(), m.groupValues[2].trim())
+        }
+    }
+
+    private fun collectYandex(node: AccessibilityNodeInfo, out: MutableList<Pair<Boolean, String>>, depth: Int) {
+        if (out.size >= 200 || depth > 25) return
+        node.str()?.let { out += false to it }
+        node.desc()?.let { if (it != node.str()) out += true to it }
+        for (k in 0 until node.childCount) collectYandex(node.getChild(k) ?: continue, out, depth + 1)
+    }
+
     // ── ЛитРес: название, страницы, автор ─────────────────────────────────────
 
     private var litresAt = 0L
@@ -313,6 +357,9 @@ class ReaderAccessibilityService : AccessibilityService() {
                 val root = rootInActiveWindow ?: return
                 val parts = mutableListOf<String>()
                 collect(root, parts, 0, 80)
+                // Яндекс Книги отдают службе текст книги абзацами — страницы книги в журнал не пишем
+                if (app == "Яндекс Книги" && event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+                    parts.count { it.length > 100 } >= 4) return
                 val hash = parts.hashCode()
                 if (hash == lastDumpHash[pkg]) return
                 lastDumpAt[pkg] = now
