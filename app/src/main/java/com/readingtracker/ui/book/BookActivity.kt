@@ -63,7 +63,7 @@ class BookActivity : AppCompatActivity() {
         b.spSource.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
             sources.map { it.first })
 
-        b.slRating.addOnChangeListener { _, value, _ -> updateRatingLabel(value.toInt()) }
+        b.rating.onChange = { updateRatingLabel(it) }
         b.btnStartDate.setOnClickListener { pickDate(startDate) { startDate = it; updateDates() } }
         b.btnEndDate.setOnClickListener { pickEndDate() }
         b.btnSave.setOnClickListener { save() }
@@ -123,7 +123,7 @@ class BookActivity : AppCompatActivity() {
             endDate = bk.endDate
             updateDates()
             showStatus(bk.status)
-            b.slRating.value = (bk.rating ?: 0).toFloat()
+            b.rating.value = bk.rating ?: 0
             updateRatingLabel(bk.rating ?: 0)
             b.etNotes.setText(bk.notes)
             genres = Book.splitGenres(bk.genres).toMutableList()
@@ -306,7 +306,7 @@ class BookActivity : AppCompatActivity() {
             return
         }
         val source = sources[b.spSource.selectedItemPosition.coerceAtLeast(0)]
-        val rating = b.slRating.value.toInt().takeIf { it > 0 }
+        val rating = b.rating.value.takeIf { it > 0 }
         val notes = b.etNotes.text.toString()
 
         val base = (book ?: Book(title = title, author = author,

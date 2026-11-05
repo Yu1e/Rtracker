@@ -295,7 +295,7 @@ class StatsFragment : Fragment() {
 
         // Календарь
         card(SEC_CALENDAR, "календарь", note)
-        // Месяц клетками по дням недели, без подписей: в прошедших днях минуты, в будущих — числа; тыц — дата и время
+        // Месяц клетками по дням недели: в прошедших днях минуты, в будущих — числа; тыц — дата и время
         val heat = com.readingtracker.stats.MonthGridView(ctx)
         val dayInfo = smallView("")
         dayInfo.visibility = View.GONE
@@ -306,6 +306,7 @@ class StatsFragment : Fragment() {
                 if (m > 0) formatMinutes(m) else "не читалось"
         }
         cur.addView(heat)
+        heatLegend()
         cur.addView(dayInfo)
 
         // Последние 30 дней
