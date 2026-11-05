@@ -73,6 +73,22 @@ class OverlayManager(private val context: Context) {
         addToWindow(pill, focusable = false, small = true)
     }
 
+    /**
+     * Вопрос с двумя кнопками поверх читалки (например, «… уже есть в трекере, статус «дочитана».
+     * Хочешь перечитать?»). Крестик — как вторая кнопка.
+     */
+    fun showQuestion(appName: String, question: String, yes: String, no: String, onYes: () -> Unit, onNo: () -> Unit) {
+        hide()
+        val view = LayoutInflater.from(themed).inflate(R.layout.overlay_continue, null)
+        view.findViewById<TextView>(R.id.tvAppName).text = appName
+        view.findViewById<TextView>(R.id.tvQuestion).text = question
+        view.findViewById<TextView>(R.id.tvBookName).visibility = View.GONE
+        view.findViewById<Button>(R.id.btnContinue).apply { text = yes; setOnClickListener { onYes() } }
+        view.findViewById<Button>(R.id.btnNewBook).apply { text = no; setOnClickListener { onNo() } }
+        view.findViewById<ImageButton>(R.id.btnClose).setOnClickListener { onNo() }
+        addToWindow(view, focusable = false)
+    }
+
     private fun showContinueOrNew(
         inflater: LayoutInflater,
         appName: String,

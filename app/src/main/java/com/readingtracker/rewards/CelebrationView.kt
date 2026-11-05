@@ -36,7 +36,7 @@ import kotlin.random.Random
 /**
  * Праздник поверх экрана: эффект и карточка с поводом посередине.
  * Ленты-ляссе за дочитанную книгу, бумажное конфетти, мыльные пузыри, салют из ромбиков,
- * листопад из букв, искры. На чернилах — только карточка, без движения. Касание закрывает.
+ * звездопад, искры. Долгие и густые: волна за волной. На чернилах — только карточка, без движения. Касание закрывает.
  */
 @SuppressLint("ViewConstructor")
 class CelebrationView(
@@ -51,7 +51,7 @@ class CelebrationView(
     private val night = RtColors.isNight(context)
     private val rnd = Random(System.nanoTime())
     private val start = SystemClock.uptimeMillis()
-    private var endAt = start + if (motion) 3900L else 4200L
+    private var endAt = start + if (motion) 7500L else 4200L
     private var done = false
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -95,50 +95,48 @@ class CelebrationView(
 
     private fun seed(w: Float, h: Float) {
         when (a.effect) {
-            Effect.CONFETTI -> repeat(130) { i ->
+            Effect.CONFETTI -> repeat(390) { i ->
+                // Три залпа из нижних углов
                 val left = i % 2 == 0
                 val ang = Math.toRadians((if (left) r(-80f, -45f) else r(-135f, -100f)).toDouble())
                 val sp = r(900f, 1600f) * d
                 parts += P(if (left) 0f else w, h * 0.92f, (cos(ang) * sp).toFloat(), (sin(ang) * sp).toFloat(),
-                    r(0f, 360f), r(-400f, 400f), r(0f, 6.28f), r(6f, 11f) * d, color(), extra = r(4f, 9f))
+                    r(0f, 360f), r(-400f, 400f), r(0f, 6.28f), r(6f, 11f) * d, color(), t0 = (i / 130) * 2.2f, extra = r(4f, 9f))
             }
-            Effect.BUBBLES -> repeat(30) {
-                parts += P(r(0.05f, 0.95f) * w, h + r(20f, 500f) * d, 0f, -r(130f, 260f) * d,
-                    0f, 0f, r(0f, 6.28f), r(10f, 34f) * d, color(), extra = r(0.12f, 0.5f) * h)
+            Effect.BUBBLES -> repeat(64) {
+                parts += P(r(0.05f, 0.95f) * w, h + r(20f, 1500f) * d, 0f, -r(130f, 260f) * d,
+                    0f, 0f, r(0f, 6.28f), r(10f, 38f) * d, color(), extra = r(0.08f, 0.5f) * h)
             }
-            Effect.FIREWORK -> repeat(6) { k ->
+            Effect.FIREWORK -> repeat(13) { k ->
                 val cx = r(0.15f, 0.85f) * w; val cy = r(0.12f, 0.55f) * h
                 val c1 = color(); val c2 = color()
                 repeat(38) {
                     val ang = r(0f, 6.28f); val sp = r(220f, 560f) * d
                     parts += P(cx, cy, cos(ang) * sp, sin(ang) * sp, ang * 57.3f, 0f, 0f,
-                        r(4f, 7f) * d, if (it % 3 == 0) c2 else c1, t0 = k * 0.38f, life = r(1.0f, 1.5f))
+                        r(4f, 7f) * d, if (it % 3 == 0) c2 else c1, t0 = k * 0.5f, life = r(1.0f, 1.6f))
                 }
             }
-            Effect.LEAVES -> {
-                val letters = "абвгдеёжзийклмнопрстуфхцчшщэюяАБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЭЮЯ"
-                repeat(38) {
-                    parts += P(r(0f, 1f) * w, -r(30f, h * 0.9f / d) * d, 0f, r(110f, 190f) * d,
-                        0f, 0f, r(0f, 6.28f), r(18f, 40f) * d, color(),
-                        text = letters[rnd.nextInt(letters.length)].toString(), extra = r(20f, 55f) * d)
-                }
+            Effect.STARS -> repeat(70) {
+                // Звездопад: светящиеся звёзды падают и вертятся, всё время новые сверху
+                parts += P(r(0f, 1f) * w, -r(20f, h * 2.2f / d) * d, r(-30f, 30f) * d, r(170f, 300f) * d,
+                    r(0f, 72f), r(-120f, 120f), r(0f, 6.28f), r(8f, 18f) * d, color(), extra = r(10f, 40f) * d)
             }
-            Effect.SPARKLES -> repeat(46) {
-                val ang = r(0f, 6.28f); val rad = r(70f, 230f) * d
-                parts += P(w / 2 + cos(ang) * rad, h * 0.45f + sin(ang) * rad * 0.8f, 0f, -r(10f, 30f) * d,
-                    r(0f, 45f), 0f, 0f, r(5f, 13f) * d, color(), t0 = r(0f, 2.6f), life = r(0.6f, 1.2f))
+            Effect.SPARKLES -> repeat(110) {
+                val ang = r(0f, 6.28f); val rad = r(50f, 260f) * d
+                parts += P(w / 2 + cos(ang) * rad, h * 0.45f + sin(ang) * rad * 0.9f, 0f, -r(10f, 30f) * d,
+                    r(0f, 45f), 0f, 0f, r(5f, 14f) * d, color(), t0 = r(0f, 6.0f), life = r(0.6f, 1.3f))
             }
             Effect.RIBBONS -> {
                 val own = a.bookId?.let { Ribbons.paletteOf(context, it) }
-                streamers = List(10) { i ->
+                streamers = List(18) { i ->
                     Streamer(r(0.04f, 0.96f) * w, r(260f, 420f) * d, r(18f, 42f) * d, r(55f, 95f) * d,
                         r(0f, 6.28f), r(140f, 240f) * d,
                         if (own != null && i % 2 == 0) own else Ribbons.palettes[rnd.nextInt(Ribbons.palettes.size)],
-                        r(0f, 0.9f))
+                        r(0f, 4.0f))
                 }
-                // Немного конфетти вдогонку
-                repeat(40) {
-                    parts += P(r(0f, 1f) * w, -r(10f, 300f) * d, r(-40f, 40f) * d, r(120f, 220f) * d,
+                // Конфетти вдогонку
+                repeat(110) {
+                    parts += P(r(0f, 1f) * w, -r(10f, 1400f) * d, r(-40f, 40f) * d, r(120f, 220f) * d,
                         r(0f, 360f), r(-300f, 300f), r(0f, 6.28f), r(5f, 9f) * d, color(), extra = r(4f, 8f))
                 }
             }
@@ -163,7 +161,7 @@ class CelebrationView(
                 Effect.CONFETTI -> confetti(canvas, dt, t)
                 Effect.BUBBLES -> bubbles(canvas, dt, t)
                 Effect.FIREWORK -> firework(canvas, dt, t)
-                Effect.LEAVES -> leaves(canvas, dt, t)
+                Effect.STARS -> stars(canvas, dt, t)
                 Effect.SPARKLES -> sparkles(canvas, t)
                 Effect.RIBBONS -> { ribbons(canvas, t); confetti(canvas, dt, t, gravity = 0.25f) }
             }
@@ -180,6 +178,7 @@ class CelebrationView(
         val g = 1500f * d * gravity
         val drag = exp(-1.6f * dt)
         for (p in parts) {
+            if (t < p.t0) continue
             p.vx *= drag; p.vy = p.vy * drag + g * dt
             // Бумажки порхают, падая
             if (p.vy > 0) p.vx += sin(t * 4f + p.phase) * 260f * d * dt
@@ -263,17 +262,29 @@ class CelebrationView(
         }
     }
 
-    private val letterPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = Fonts.semibold(context) }
-
-    private fun leaves(canvas: Canvas, dt: Float, t: Float) {
+    /** Звезда: пять лучей, светящийся ореол, вертится и покачивается, падая. */
+    private fun stars(canvas: Canvas, dt: Float, t: Float) {
         for (p in parts) {
             p.y += p.vy * dt
-            val x = p.x + sin(t * 1.6f + p.phase) * p.extra
-            val rot = sin(t * 1.9f + p.phase) * 38f
-            canvas.save(); canvas.translate(x, p.y); canvas.rotate(rot)
-            letterPaint.color = RtColors.withAlpha(p.color, 0.9f)
-            letterPaint.textSize = p.size
-            canvas.drawText(p.text, 0f, p.size * 0.35f, letterPaint)
+            p.rot += p.vrot * dt
+            val x = p.x + sin(t * 1.4f + p.phase) * p.extra
+            if (p.y < -p.size * 3 || p.y > height + p.size * 3) continue
+            canvas.save(); canvas.translate(x, p.y); canvas.rotate(p.rot)
+            paint.shader = RadialGradient(0f, 0f, p.size * 2.4f,
+                intArrayOf(RtColors.withAlpha(p.color, 0.45f), RtColors.withAlpha(p.color, 0f)), null, Shader.TileMode.CLAMP)
+            canvas.drawCircle(0f, 0f, p.size * 2.4f, paint)
+            paint.shader = null; paint.color = p.color
+            path.reset()
+            for (k in 0 until 10) {
+                val rr = if (k % 2 == 0) p.size else p.size * 0.42f
+                val ang = (k * 36f - 90f) * PI.toFloat() / 180f
+                val px = cos(ang) * rr; val py = sin(ang) * rr
+                if (k == 0) path.moveTo(px, py) else path.lineTo(px, py)
+            }
+            path.close()
+            canvas.drawPath(path, paint)
+            paint.color = RtColors.withAlpha(Color.WHITE, 0.85f)
+            canvas.drawCircle(0f, 0f, p.size * 0.18f, paint)
             canvas.restore()
         }
     }

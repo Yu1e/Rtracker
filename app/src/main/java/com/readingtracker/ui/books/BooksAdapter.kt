@@ -71,6 +71,7 @@ class BooksAdapter(
                             R.id.action_abandoned -> onStatusChange(book, Book.STATUS_ABANDONED)
                             R.id.action_paused    -> onStatusChange(book, Book.STATUS_PAUSED)
                             R.id.action_reading   -> onStatusChange(book, Book.STATUS_READING)
+                            R.id.action_reread    -> onStatusChange(book, Book.STATUS_REREADING)
                         }
                         true
                     }

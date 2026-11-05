@@ -47,7 +47,9 @@ object WidgetUpdater {
         scope.launch {
             try {
                 val db = AppDatabase.getInstance(app)
-                val stats = StatsCalc.compute(db.bookDao().getAllBooksSync(), db.sessionDao().getAllSessions())
+                val allSessions = db.sessionDao().getAllSessions()
+                val stats = StatsCalc.compute(com.readingtracker.data.Readings.expand(db.bookDao().getAllBooksSync(),
+                    allSessions, db.readingDao().getAll()), allSessions)
                 val views = build(app, stats)
                 manager.updateAppWidget(ids, views)
             } catch (_: Exception) {}

@@ -5,5 +5,6 @@
     <item android:id="@+id/action_finished"  android:title="Дочитана" />
     <item android:id="@+id/action_abandoned" android:title="Брошена" />
     <item android:id="@+id/action_paused"    android:title="Отложена" />
-    <item android:id="@+id/action_reading"   android:title="Читаю снова" />
+    <item android:id="@+id/action_reading"   android:title="Читаю" />
+    <item android:id="@+id/action_reread"    android:title="Перечитываю" />
 </menu>

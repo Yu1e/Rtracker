@@ -418,7 +418,7 @@ class ReadingTrackerService : Service() {
         scope.launch {
             val remembered = db.sessionDao().getLastBookIdForApp(pkg)?.let { db.bookDao().getBookById(it) }
             // Дочитанную или брошенную книгу не предлагаем: открытой книги нет
-            val open = remembered?.takeIf { it.status == Book.STATUS_READING || it.status == Book.STATUS_PAUSED }
+            val open = remembered?.takeIf { Book.isOpen(it.status) }
             withContext(Dispatchers.Main) {
                 if (foregroundReadingApp != pkg) return@withContext
                 try {
@@ -504,15 +504,48 @@ class ReadingTrackerService : Service() {
             ReaderScreen.genresFor(this@ReadingTrackerService, title)?.let { g ->
                 db.bookDao().getBookById(bookId)?.takeIf { it.genres.isBlank() }?.let { db.bookDao().updateBook(it.copy(genres = g)) }
             }
-            for (p in pieces) {
-                db.sessionDao().insertSession(ReadingSession(bookId = bookId, startTime = p[0], endTime = p[1], appPackage = pkg))
-                accumulateTime(bookId, p[0], p[1])
+            // Книга уже есть и дочитана или брошена — это перечитывание: сначала спросить
+            val bk = db.bookDao().getBookById(bookId)
+            if (bk != null && (bk.status == Book.STATUS_FINISHED || bk.status == Book.STATUS_ABANDONED)) {
+                withContext(Dispatchers.Main) { askReread(bk, pkg, appName, pieces) }
+                return@launch
             }
-            withContext(Dispatchers.Main) {
-                activeBookId = bookId
-                if (foregroundReadingApp == pkg && isScreenOn) startSessionInternal(bookId, pkg)
-            }
+            writePiecesAndRead(bookId, pkg, pieces)
         }
+    }
+
+    private suspend fun writePiecesAndRead(bookId: Long, pkg: String, pieces: List<LongArray>) {
+        for (p in pieces) {
+            db.sessionDao().insertSession(ReadingSession(bookId = bookId, startTime = p[0], endTime = p[1], appPackage = pkg))
+            accumulateTime(bookId, p[0], p[1])
+        }
+        withContext(Dispatchers.Main) {
+            activeBookId = bookId
+            if (foregroundReadingApp == pkg && isScreenOn) startSessionInternal(bookId, pkg)
+        }
+    }
+
+    /** «… уже есть в трекере, статус «дочитана». Хочешь перечитать?» — «Да, перечитаю» / «Остановить трекер». */
+    private fun askReread(bk: Book, pkg: String, appName: String, pieces: List<LongArray>) {
+        if (foregroundReadingApp != pkg) return
+        formOpen = true
+        val name = bk.title.ifBlank { bk.author }.ifBlank { "Без названия" }
+        overlay.showQuestion(appName,
+            "«$name» уже есть в трекере, статус «${com.readingtracker.export.Exporter.statusWord(bk.status)}». Хочешь перечитать?",
+            "Да, перечитаю", "Остановить трекер",
+            onYes = {
+                overlay.hide(); formOpen = false
+                scope.launch {
+                    // Новое прочтение — с первой минуты, проведённой в читалке без книги
+                    val start = pieces.minOfOrNull { it[0] } ?: System.currentTimeMillis()
+                    BookActions.startReread(this@ReadingTrackerService, bk, start)
+                    writePiecesAndRead(bk.id, pkg, pieces)
+                }
+            },
+            onNo = {
+                overlay.hide(); formOpen = false
+                startChoosing(pkg)
+            })
     }
 
     // ── Книга с экрана читалки (ЛитРес) ──────────────────────────────────────
@@ -612,7 +645,7 @@ class ReadingTrackerService : Service() {
             }
             val open = books.filter {
                 ReaderScreen.sameTitle(it.title, title) &&
-                    (it.status == Book.STATUS_READING || it.status == Book.STATUS_PAUSED)
+                    Book.isOpen(it.status)
             }
             val known = open.firstOrNull { it.appPackage == pkg } ?: open.firstOrNull()
             withContext(Dispatchers.Main) {

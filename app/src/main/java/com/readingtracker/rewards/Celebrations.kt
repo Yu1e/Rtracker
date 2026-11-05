@@ -34,7 +34,8 @@ object Celebrations {
             Achievement("demo", Effect.RIBBONS, "дочитано", "Мастер и Маргарита", "Михаил Булгаков"),
             Achievement("demo", Effect.BUBBLES, "часов с книгой", "100"),
             Achievement("demo", Effect.FIREWORK, "книг дочитано", "25"),
-            Achievement("demo", Effect.LEAVES, "дней подряд", "30"),
+            Achievement("demo", Effect.STARS, "дней подряд", "30"),
+            Achievement("demo", Effect.FIREWORK, "рекорд: больше всего книг за месяц", "7", "прежний рекорд: 5"),
             Achievement("demo", Effect.SPARKLES, "дней с книгой", "365"),
             Achievement("demo", Effect.CONFETTI, "цель дня взята", "60 мин")
         )

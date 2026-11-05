@@ -8,14 +8,15 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [Book::class, ReadingSession::class],
-    version = 6,
+    entities = [Book::class, ReadingSession::class, Reading::class],
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun bookDao(): BookDao
     abstract fun sessionDao(): SessionDao
+    abstract fun readingDao(): ReadingDao
 
     companion object {
         @Volatile
@@ -60,13 +61,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** 6 → 7: прочтения (перечитывание). */
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `readings` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`bookId` INTEGER NOT NULL, `number` INTEGER NOT NULL, `startDate` INTEGER NOT NULL, " +
+                    "`endDate` INTEGER, `status` TEXT NOT NULL, `reread` INTEGER NOT NULL)")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "reading_tracker.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build().also { INSTANCE = it }
             }
     }

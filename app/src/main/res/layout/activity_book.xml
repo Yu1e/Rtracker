@@ -217,6 +217,33 @@
                 android:layout_weight="1" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:orientation="horizontal">
+            <com.readingtracker.ui.book.StatusTileView
+                android:id="@+id/stRereading"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="10dp" />
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+        </LinearLayout>
+
+        <!-- Прочтения: только у перечитанной книги -->
+        <TextView
+            android:id="@+id/tvReadings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:lineSpacingExtra="3dp"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/tvRating"
             android:layout_width="wrap_content"

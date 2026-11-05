@@ -1,7 +1,9 @@
 package com.readingtracker.ui.home
 
 import com.readingtracker.data.Book
+import com.readingtracker.data.Reading
 import com.readingtracker.data.ReadingSession
+import com.readingtracker.data.Readings
 import com.readingtracker.stats.StatsCalc
 import java.time.Instant
 import java.time.LocalDate
@@ -36,8 +38,11 @@ data class HomeData(
         private val zone: ZoneId get() = ZoneId.systemDefault()
         private fun Long.toDate(): LocalDate = Instant.ofEpochMilli(this).atZone(zone).toLocalDate()
 
-        fun compute(books: List<Book>, sessions: List<ReadingSession>, now: Long = System.currentTimeMillis()): HomeData {
-            val st = StatsCalc.compute(books, sessions, now)
+        fun compute(books: List<Book>, sessions: List<ReadingSession>, readings: List<Reading> = emptyList(),
+                    now: Long = System.currentTimeMillis()): HomeData {
+            // Перечитанная книга считается по прочтениям: каждое дочитанное — на полку своего месяца
+            val byReading = Readings.expand(books, sessions, readings, now)
+            val st = StatsCalc.compute(byReading, sessions, now)
             val today = st.today
 
             val first7 = today.minusDays(6)
@@ -54,7 +59,7 @@ data class HomeData(
             // Книги «сейчас читаю»: сверху та, что читалась последней
             val lastRead = HashMap<Long, Long>()
             for (s in sessions) lastRead[s.bookId] = maxOf(lastRead[s.bookId] ?: 0L, s.endTime ?: s.startTime)
-            val readingAll = books.filter { it.status == Book.STATUS_READING }
+            val readingAll = books.filter { Book.isReading(it.status) }
                 .sortedByDescending { lastRead[it.id] ?: it.startDate }
             // В стопке три самые свежие; та, что дольше всех не открывалась, остаётся только в «книгах»
             val reading = readingAll.take(3)
@@ -63,16 +68,19 @@ data class HomeData(
             var bookMinutes = 0L
             var bricks = emptyList<BookCoverView.Brick>()
             if (book != null) {
-                val own = sessions.filter { it.bookId == book.id }
+                // У перечитываемой книги на манжетке — текущее прочтение
+                val current = Readings.parts(book, readings, sessions, now).lastOrNull()
+                val from = current?.reading?.startDate ?: Long.MIN_VALUE
+                val own = sessions.filter { it.bookId == book.id && it.startTime >= from }
                 val fromSessions = own.sumOf { s -> ((s.endTime ?: now) - s.startTime).coerceAtLeast(0) / 60_000 }
-                bookMinutes = if (book.totalMinutes > 0) book.totalMinutes else fromSessions
+                bookMinutes = current?.minutes ?: if (book.totalMinutes > 0) book.totalMinutes else fromSessions
                 val readDays = own.map { it.startTime.toDate() }.toSet()
-                val start = (listOf(book.startDate.toDate()) + readDays).minOrNull() ?: today
+                val start = (listOf((current?.reading?.startDate ?: book.startDate).toDate()) + readDays).minOrNull() ?: today
                 bricks = buildBricks(start, today, readDays)
             }
 
             val monthStart = today.withDayOfMonth(1)
-            val finished = books.filter {
+            val finished = byReading.filter {
                 it.status == Book.STATUS_FINISHED && it.endDate != null &&
                     !it.endDate.toDate().isBefore(monthStart) && !it.endDate.toDate().isAfter(today)
             }.sortedBy { it.endDate }
@@ -89,7 +97,7 @@ data class HomeData(
                 bricks = bricks,
                 finishedThisMonth = finished,
                 ghosts = readingAll.size.coerceAtMost(4),
-                pending = books.count { it.status == Book.STATUS_READING || it.status == Book.STATUS_PAUSED },
+                pending = books.count { Book.isOpen(it.status) },
                 todayMinutes = st.todayMinutes,
                 streak = st.currentStreak,
                 record = maxOf(st.bestStreak, st.currentStreak)

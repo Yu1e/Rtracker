@@ -18,7 +18,7 @@ object BookActions {
         val now = System.currentTimeMillis()
         val endDate = when (status) {
             Book.STATUS_FINISHED, Book.STATUS_ABANDONED -> book.endDate ?: now
-            Book.STATUS_READING -> null
+            Book.STATUS_READING, Book.STATUS_REREADING -> null
             else -> book.endDate
         }
         return book.copy(
@@ -32,9 +32,56 @@ object BookActions {
     suspend fun setStatus(context: Context, bookId: Long, status: String) {
         val db = AppDatabase.getInstance(context)
         val book = db.bookDao().getBookById(bookId) ?: return
-        db.bookDao().updateBook(applyStatus(book, status))
+        if (status == Book.STATUS_REREADING && book.status != Book.STATUS_REREADING) {
+            startReread(context, book)
+        } else {
+            val updated = applyStatus(book, status)
+            db.bookDao().updateBook(updated)
+            syncLastReading(context, updated)
+        }
         NotificationManagerCompat.from(context).cancel(notificationId(bookId))
         WidgetUpdater.update(context)
+    }
+
+    /** Последнее прочтение повторяет статус и дату окончания книги. */
+    suspend fun syncLastReading(context: Context, book: Book) {
+        val dao = AppDatabase.getInstance(context).readingDao()
+        val last = dao.forBook(book.id).lastOrNull() ?: return
+        if (last.status != book.status || last.endDate != book.endDate)
+            dao.update(last.copy(status = book.status, endDate = book.endDate))
+    }
+
+    /**
+     * «Перечитываю». У книги с карточкой прежнее чтение становится первым прочтением
+     * (недочитанное — брошенным), с этой минуты идёт новое.
+     */
+    suspend fun startReread(context: Context, book: Book, now: Long = System.currentTimeMillis()) {
+        val db = AppDatabase.getInstance(context)
+        val dao = db.readingDao()
+        val rs = dao.forBook(book.id)
+        val closedStatus = if (book.status == Book.STATUS_FINISHED || book.status == Book.STATUS_ABANDONED) book.status
+            else Book.STATUS_ABANDONED
+        if (rs.isEmpty()) {
+            dao.insert(Reading(bookId = book.id, number = 1, startDate = book.startDate,
+                endDate = book.endDate ?: now, status = closedStatus, reread = false))
+        } else {
+            val last = rs.last()
+            if (last.endDate == null || Book.isOpen(last.status))
+                dao.update(last.copy(endDate = last.endDate ?: now, status = closedStatus))
+        }
+        dao.insert(Reading(bookId = book.id, number = (rs.maxOfOrNull { it.number } ?: 1) + 1,
+            startDate = now, status = Book.STATUS_REREADING, reread = true))
+        db.bookDao().updateBook(book.copy(status = Book.STATUS_REREADING, endDate = null,
+            needsStatusCheck = false, statusAskAt = null))
+    }
+
+    /** Новая карточка сразу с «Перечитываю»: одно прочтение, но в статистику перечитываний. */
+    suspend fun markNewAsReread(context: Context, bookId: Long) {
+        val db = AppDatabase.getInstance(context)
+        val book = db.bookDao().getBookById(bookId) ?: return
+        if (db.readingDao().forBook(bookId).isNotEmpty()) return
+        db.readingDao().insert(Reading(bookId = bookId, number = 1, startDate = book.startDate,
+            endDate = book.endDate, status = book.status, reread = true))
     }
 
     /** «Позже»: спросить снова через неделю. */
@@ -49,6 +96,7 @@ object BookActions {
         val db = AppDatabase.getInstance(context)
         val book = db.bookDao().getBookById(bookId) ?: return
         db.sessionDao().deleteForBook(bookId)
+        db.readingDao().deleteForBook(bookId)
         db.bookDao().deleteBook(book)
         NotificationManagerCompat.from(context).cancel(notificationId(bookId))
         WidgetUpdater.update(context)

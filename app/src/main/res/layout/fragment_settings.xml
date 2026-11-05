@@ -63,7 +63,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="14sp"
-            android:text="только статистика: без целей и рекордов" />
+            android:text="только статистика: без целей и рекордов (награды — отдельно, ниже)" />
 
         <LinearLayout
             android:id="@+id/goalBlock"
@@ -100,13 +100,13 @@
         </LinearLayout>
 
         <!-- Праздничные эффекты -->
-        <TextView style="@style/SettingsSection" android:text="поощрения" />
+        <TextView style="@style/SettingsSection" android:text="награды" />
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/swEffects"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="14sp"
-            android:text="праздничные эффекты за дочитанную книгу и круглые числа" />
+            android:text="награды: праздник за дочитанную и перечитанную книгу, книги за месяц, круглые числа" />
         <Button
             android:id="@+id/btnTryEffect"
             android:layout_width="match_parent"

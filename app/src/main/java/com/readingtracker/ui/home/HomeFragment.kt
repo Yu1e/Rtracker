@@ -76,7 +76,8 @@ class HomeFragment : Fragment() {
                 val db = AppDatabase.getInstance(ctx)
                 val books = db.bookDao().getAllBooksSync()
                 val sessions = db.sessionDao().getAllSessions()
-                HomeData.compute(books, sessions) to Achievements.pending(ctx, books, sessions)
+                val readings = db.readingDao().getAll()
+                HomeData.compute(books, sessions, readings) to Achievements.pending(ctx, books, sessions, readings)
             }
             if (_b == null) return@launch
             data = d

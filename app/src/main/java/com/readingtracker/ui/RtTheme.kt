@@ -64,10 +64,11 @@ object RtTheme {
     /** Ступени теплокарты: 0 — нейтральная клетка, 1–4 — всё насыщеннее к цвету акцента. */
     fun heat(c: Context, level: Int): Int {
         if (isGlass(c)) {
-            // Стекло: холодная мята, чтобы календарь не тонул в лиловом фоне
+            // Стекло: фиолетовый с широким размахом, от глубокого к светло-лиловому (без розового),
+            // чтобы заполненные дни не сливались с лиловым фоном; пустые дни — только контур
             val night = RtColors.isNight(c)
-            val steps = if (night) intArrayOf(0x24FFFFFF, 0xFF1E5A50.toInt(), 0xFF2A9C84.toInt(), 0xFF45D1AE.toInt(), 0xFF8FF5DA.toInt())
-            else intArrayOf(0xFFE3EEEE.toInt(), 0xFFBFF0E2.toInt(), 0xFF7EE0C6.toInt(), 0xFF3CC6A4.toInt(), 0xFF14937C.toInt())
+            val steps = if (night) intArrayOf(0x24FFFFFF, 0xFF4B2FB0.toInt(), 0xFF7B5CFF.toInt(), 0xFFA88DFF.toInt(), 0xFFD4C6FF.toInt())
+            else intArrayOf(0xFFE6E0F7.toInt(), 0xFFCDBDFF.toInt(), 0xFFA58EFF.toInt(), 0xFF7B5CFF.toInt(), 0xFF4B2FB0.toInt())
             return steps[level.coerceIn(0, 4)]
         }
         val zero = RtColors.c(c, R.color.rt_heat0)

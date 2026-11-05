@@ -137,7 +137,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val book = withContext(Dispatchers.IO) {
                 val db = AppDatabase.getInstance(this@MainActivity)
-                HomeData.compute(db.bookDao().getAllBooksSync(), db.sessionDao().getAllSessions()).book
+                HomeData.compute(db.bookDao().getAllBooksSync(), db.sessionDao().getAllSessions(), db.readingDao().getAll()).book
             }
             if (book == null) {
                 Toast.makeText(this@MainActivity, "Сначала добавь книгу", Toast.LENGTH_SHORT).show()

@@ -63,6 +63,7 @@ class StatsFragment : Fragment() {
         const val SEC_GENRES = "genres"
         const val SEC_RATINGS = "ratings"
         const val SEC_APPS = "apps"
+        const val SEC_REREADS = "rereads"
 
         /** Раздел, к которому прокрутить при открытии (тыц с главного). */
         var pendingSection: String? = null
@@ -84,6 +85,9 @@ class StatsFragment : Fragment() {
 
     private var books: List<Book> = emptyList()
     private var sessions: List<ReadingSession> = emptyList()
+    private var readings: List<com.readingtracker.data.Reading> = emptyList()
+    /** Пятая галочка: карточка «перечитывания». По умолчанию снята. */
+    private var showRereads = false
 
     /** Разделы на экране: ключ → карточка; и пункты полосы разделов. */
     private val sections = LinkedHashMap<String, View>()
@@ -120,8 +124,9 @@ class StatsFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (!keepFilters && selected.size != STATUSES.size) {
+        if (!keepFilters && (selected.size != STATUSES.size || showRereads)) {
             selected.clear(); selected += STATUSES.map { it.first }
+            showRereads = false
             buildFilters()
         }
         keepFilters = false
@@ -133,21 +138,24 @@ class StatsFragment : Fragment() {
             val db = AppDatabase.getInstance(requireContext())
             books = db.bookDao().getAllBooksSync()
             sessions = db.sessionDao().getAllSessions()
+            readings = db.readingDao().getAll()
             renderAll()
         }
     }
 
     private fun renderAll() {
-        val all = books; val ses = sessions
-        val sel = selected.toSet()
+        val all = books; val ses = sessions; val rds = readings
+        // «читаю» включает и перечитывание
+        val sel = selected.toSet().let { if (Book.STATUS_READING in it) it + Book.STATUS_REREADING else it }
         viewLifecycleOwner.lifecycleScope.launch {
             val (full, filtered) = withContext(Dispatchers.Default) {
-                val f = StatsCalc.compute(all, ses)
-                if (sel.size == STATUSES.size) f to f
+                // Перечитанная книга считается по прочтениям — полноценно, каждое прочтение
+                val expanded = com.readingtracker.data.Readings.expand(all, ses, rds)
+                val f = StatsCalc.compute(expanded, ses)
+                if (selected.size == STATUSES.size) f to f
                 else {
-                    val fb = all.filter { it.status in sel }
-                    val ids = fb.map { it.id }.toSet()
-                    f to StatsCalc.compute(fb, ses.filter { it.bookId in ids })
+                    val fb = expanded.filter { it.status in sel }
+                    f to StatsCalc.compute(fb, com.readingtracker.data.Readings.sessionsWithStatus(all, ses, rds, sel))
                 }
             }
             if (_b == null) return@launch
@@ -186,6 +194,19 @@ class StatsFragment : Fragment() {
                 }
             }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = (6 * dp).toInt() })
         }
+        // Пятая: отдельная статистика перечитываний
+        b.filters.addView(CheckBox(ctx).apply {
+            text = "перечитывания"
+            textSize = 13f
+            setTextColor(col(R.color.rt_ink2))
+            CompoundButtonCompat.setButtonTintList(this, android.content.res.ColorStateList.valueOf(col(R.color.rt_ink2)))
+            isChecked = showRereads
+            setOnCheckedChangeListener { _, on ->
+                showRereads = on
+                if (on) pendingSection = SEC_REREADS
+                renderAll()
+            }
+        })
         Fonts.apply(b.filters)
     }
 
@@ -260,9 +281,6 @@ class StatsFragment : Fragment() {
             "дней подряд" to "${full.currentStreak}",
             "за ${MONTHS_NOM[full.today.monthValue - 1]}" to formatMinutes(full.monthMinutes)
         )
-        // Витраж «дней подряд» на главном — 30 осколков; сколько до полного окна
-        val nextWindow = (full.currentStreak / 30 + 1) * 30
-        kv("дней подряд до $nextWindow", "${nextWindow - full.currentStreak}")
         if (full.currentStreak > 0 && !full.readToday) {
             small("Сегодня ещё не читалось — серия продолжится, если открыть книгу до полуночи.")
         }
@@ -277,10 +295,13 @@ class StatsFragment : Fragment() {
 
         // Календарь
         card(SEC_CALENDAR, "календарь", note)
-        val heat = HeatmapView(ctx)
-        val dayInfo = smallView("Нажми на день, чтобы увидеть время")
+        // Месяц клетками: в прошедших днях минуты, в будущих — числа; тыц — дата и время
+        val heat = com.readingtracker.stats.MonthGridView(ctx)
+        val dayInfo = smallView("")
+        dayInfo.visibility = View.GONE
         heat.setData(s.dayMinutes, s.today)
         heat.onDaySelected = { day, m ->
+            dayInfo.visibility = View.VISIBLE
             dayInfo.text = "${day.format(DateTimeFormatter.ofPattern("d MMMM, EEEE", Locale("ru")))}: " +
                 if (m > 0) formatMinutes(m) else "не читалось"
         }
@@ -357,6 +378,8 @@ class StatsFragment : Fragment() {
             }
         }
 
+        if (showRereads) rereadsCard()
+
         card(SEC_PER_BOOK, "на одну книгу", note)
         small("Медиана — «серединное» значение: одна очень толстая книга её не сдвигает. Считается по дочитанным.")
         kv("время, медиана (всё время)", if (s.medianMinutesAll > 0) formatMinutes(s.medianMinutesAll) else "—")
@@ -403,6 +426,34 @@ class StatsFragment : Fragment() {
 
         Fonts.apply(b.container)
         buildNav()
+    }
+
+    /** Перечитывания: сколько книг и раз, время, дочитано, какие чаще. */
+    private fun rereadsCard() {
+        card(SEC_REREADS, "перечитывания", null)
+        val rr = readings.filter { it.reread }
+        if (rr.isEmpty()) { small("Перечитываний пока нет. Плитка «Перечитываю» — в карточке книги."); return }
+        val now = System.currentTimeMillis()
+        val bookById = books.associateBy { it.id }
+        var minutes = 0L
+        for ((id, list) in readings.groupBy { it.bookId }) {
+            val bk = bookById[id] ?: continue
+            com.readingtracker.data.Readings.parts(bk, list, sessions, now).filter { it.reading.reread }.forEach { minutes += it.minutes }
+        }
+        val year = java.time.LocalDate.now().year
+        fun yearOf(ms: Long) = java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault()).year
+        kv("книг перечитано", "${rr.map { it.bookId }.distinct().size}")
+        kv("перечитываний всего", "${rr.size}")
+        kv("дочитано при перечитывании", "${rr.count { it.status == Book.STATUS_FINISHED }}")
+        kv("в этом году", "${rr.count { yearOf(it.startDate) == year }}")
+        kv("время на перечитывание", formatMinutes(minutes))
+        val top = readings.groupBy { it.bookId }.mapValues { (_, l) -> l.size }
+            .filter { (id, _) -> rr.any { it.bookId == id } }
+            .entries.sortedByDescending { it.value }.take(5)
+        if (top.isNotEmpty()) {
+            small("чаще всего:")
+            top.forEach { (id, n) -> bookById[id]?.let { bookLine("", it, "прочтений: $n") } }
+        }
     }
 
     // ── Карточки и строки ─────────────────────────────────────────────────────
@@ -541,7 +592,7 @@ class StatsFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val r = withContext(Dispatchers.IO) {
                 runCatching {
-                    val files = Exporter.build(job, books, sessions)
+                    val files = Exporter.build(job, books, sessions, readings)
                     Exporter.write(ctx, folder, files)
                 }
             }
@@ -591,6 +642,7 @@ private val NAV_TITLES = mapOf(
     StatsFragment.SEC_WHEN to "когда",
     StatsFragment.SEC_BOOKS to "книги",
     StatsFragment.SEC_ABANDONED to "брошенные",
+    StatsFragment.SEC_REREADS to "перечитывания",
     StatsFragment.SEC_PER_BOOK to "на книгу",
     StatsFragment.SEC_RECORDS to "рекорды",
     StatsFragment.SEC_AUTHORS to "авторы",

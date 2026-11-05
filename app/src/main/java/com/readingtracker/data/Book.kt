@@ -39,6 +39,12 @@ data class Book(
         const val STATUS_FINISHED = "finished"
         const val STATUS_ABANDONED = "abandoned"
         const val STATUS_PAUSED = "paused"
+        const val STATUS_REREADING = "rereading"
+
+        /** Книга сейчас читается: впервые или снова. */
+        fun isReading(status: String) = status == STATUS_READING || status == STATUS_REREADING
+        /** Временный статус: книга открыта (читается, перечитывается или отложена). */
+        fun isOpen(status: String) = isReading(status) || status == STATUS_PAUSED
 
         const val PKG_PAPER = "paper"
         const val PKG_OTHER = "other"
@@ -62,6 +68,7 @@ data class Book(
             STATUS_FINISHED -> "Дочитана"
             STATUS_ABANDONED -> "Брошена"
             STATUS_PAUSED -> "Отложена"
+            STATUS_REREADING -> "Перечитываю"
             else -> status
         }
 

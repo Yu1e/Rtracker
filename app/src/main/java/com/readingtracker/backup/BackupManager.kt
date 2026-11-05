@@ -7,6 +7,7 @@ import androidx.room.withTransaction
 import com.readingtracker.Prefs
 import com.readingtracker.data.AppDatabase
 import com.readingtracker.data.Book
+import com.readingtracker.data.Reading
 import com.readingtracker.data.ReadingSession
 import com.readingtracker.widget.WidgetUpdater
 import org.json.JSONArray
@@ -49,9 +50,18 @@ object BackupManager {
                 put("endTime", s.endTime ?: JSONObject.NULL); put("appPackage", s.appPackage)
             })
         }
+        val readings = JSONArray()
+        for (r in db.readingDao().getAll()) {
+            readings.put(JSONObject().apply {
+                put("id", r.id); put("bookId", r.bookId); put("number", r.number)
+                put("startDate", r.startDate); put("endDate", r.endDate ?: JSONObject.NULL)
+                put("status", r.status); put("reread", r.reread)
+            })
+        }
         return JSONObject().apply {
             put("format", "rtracker")
-            put("version", 2)
+            put("version", 3)
+            put("readings", readings)
             put("created", System.currentTimeMillis())
             put("books", books)
             put("sessions", sessions)
@@ -61,7 +71,8 @@ object BackupManager {
     private fun JSONObject.optLongOrNull(key: String): Long? = if (isNull(key)) null else optLong(key)
     private fun JSONObject.optIntOrNull(key: String): Int? = if (isNull(key)) null else optInt(key)
 
-    data class Parsed(val books: List<Book>, val sessions: List<ReadingSession>, val created: Long)
+    data class Parsed(val books: List<Book>, val sessions: List<ReadingSession>, val created: Long,
+                      val readings: List<Reading> = emptyList())
 
     fun parse(text: String): Parsed {
         val root = JSONObject(text)
@@ -103,7 +114,19 @@ object BackupManager {
                 appPackage = o.optString("appPackage")
             )
         }
-        return Parsed(books, sessions, root.optLong("created"))
+        // Прочтения (перечитывание) — с версии копии 3
+        val readings = mutableListOf<Reading>()
+        root.optJSONArray("readings")?.let { ra ->
+            for (i in 0 until ra.length()) {
+                val o = ra.getJSONObject(i)
+                readings += Reading(
+                    id = o.getLong("id"), bookId = o.getLong("bookId"), number = o.getInt("number"),
+                    startDate = o.getLong("startDate"), endDate = o.optLongOrNull("endDate"),
+                    status = o.optString("status", Book.STATUS_FINISHED), reread = o.optBoolean("reread")
+                )
+            }
+        }
+        return Parsed(books, sessions, root.optLong("created"), readings)
     }
 
     // ── Запись ────────────────────────────────────────────────────────────────
@@ -160,9 +183,11 @@ object BackupManager {
         val db = AppDatabase.getInstance(context)
         db.withTransaction {
             db.sessionDao().deleteAll()
+            db.readingDao().deleteAll()
             db.bookDao().deleteAll()
             db.bookDao().insertAll(parsed.books)
             db.sessionDao().insertAll(parsed.sessions)
+            db.readingDao().insertAll(parsed.readings)
         }
         WidgetUpdater.update(context)
     }

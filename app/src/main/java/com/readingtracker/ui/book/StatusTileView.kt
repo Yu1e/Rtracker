@@ -17,7 +17,7 @@ import com.readingtracker.ui.RtTheme
 /**
  * Плитка статуса в карточке книги: картинка и подпись. Выбранная обведена рамкой.
  * Картинки пока нейтральные: читаю — раскрытая книга; дочитана — улыбается;
- * отложена — лежит и спит; брошена — в корзине.
+ * отложена — лежит и спит; брошена — в корзине; перечитываю — книга в круговой стрелке.
  */
 class StatusTileView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
@@ -51,6 +51,7 @@ class StatusTileView @JvmOverloads constructor(
         Book.STATUS_FINISHED -> "дочитана"
         Book.STATUS_PAUSED -> "отложена"
         Book.STATUS_ABANDONED -> "брошена"
+        Book.STATUS_REREADING -> "перечитываю"
         else -> "читаю"
     }
 
@@ -138,6 +139,20 @@ class StatusTileView @JvmOverloads constructor(
                 canvas.drawLine(12.7f, 40f, 47.3f, 40f, line)
                 line.strokeWidth = 2.2f
                 canvas.drawLine(8f, 26f, 52f, 26f, line)
+            }
+            Book.STATUS_REREADING -> {
+                // Закрытая книга и круговая стрелка вокруг: ещё раз
+                val cover = RectF(22f, 10f, 38f, 36f)
+                fill.color = soft; canvas.drawRoundRect(cover, 2f, 2f, fill)
+                canvas.drawRoundRect(cover, 2f, 2f, line)
+                line.strokeWidth = 1.1f; canvas.drawLine(25f, 11f, 25f, 35f, line)
+                line.color = accent; line.strokeWidth = 2.2f
+                canvas.drawArc(RectF(8f, 2f, 52f, 46f), -60f, 300f, false, line)
+                // Наконечник стрелки
+                val ax = 30f + 22f * kotlin.math.cos(Math.toRadians(-60.0)).toFloat()
+                val ay = 24f + 22f * kotlin.math.sin(Math.toRadians(-60.0)).toFloat()
+                val head = Path().apply { moveTo(ax - 1f, ay - 6f); lineTo(ax + 1.5f, ay + 0.5f); lineTo(ax - 6f, ay + 1f) }
+                canvas.drawPath(head, line)
             }
             else -> {
                 // Раскрытая книга, из середины выглядывает ляссе

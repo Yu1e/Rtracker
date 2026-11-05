@@ -52,7 +52,7 @@ class LaunchReaderActivity : Activity() {
             runBlocking {
                 val db = AppDatabase.getInstance(this@LaunchReaderActivity)
                 val last = db.sessionDao().getLastBookIdForApp(pkg)?.let { db.bookDao().getBookById(it) }
-                last != null && (last.status == Book.STATUS_READING || last.status == Book.STATUS_PAUSED)
+                last != null && Book.isOpen(last.status)
             }
         } catch (e: Exception) { true }
 

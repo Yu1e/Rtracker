@@ -216,13 +216,14 @@ object StatsCalc {
         }.sortedByDescending { it.third }
 
         // ── Оценки ────────────────────────────────────────────────────────────
-        val rated = books.filter { it.rating != null }
+        // Оценка у книги одна, сколько её ни перечитывай
+        val rated = books.filter { it.rating != null }.distinctBy { it.id }
         val topRated = rated.sortedByDescending { it.rating }.take(3)
 
         // ── Текущая книга ─────────────────────────────────────────────────────
         val lastSession = sessions.maxByOrNull { it.startTime }
         val currentBook = lastSession?.let { booksById[it.bookId] }
-            ?: books.filter { it.status == Book.STATUS_READING }.maxByOrNull { it.startDate }
+            ?: books.filter { Book.isReading(it.status) }.maxByOrNull { it.startDate }
 
         // ── Жанры ─────────────────────────────────────────────────────────────
         val genreAcc = LinkedHashMap<String, Pair<Int, Long>>()
@@ -277,7 +278,7 @@ object StatsCalc {
             finishedTotal = finished.size,
             abandonedTotal = books.count { it.status == Book.STATUS_ABANDONED },
             pausedTotal = books.count { it.status == Book.STATUS_PAUSED },
-            readingTotal = books.count { it.status == Book.STATUS_READING },
+            readingTotal = books.count { Book.isReading(it.status) },
             totalMinutes = books.sumOf { it.totalMinutes },
             meanMinutesAll = if (timed.isEmpty()) 0 else timed.sumOf { it.totalMinutes } / timed.size,
             medianMinutesAll = median(timed.map { it.totalMinutes }) ?: 0,

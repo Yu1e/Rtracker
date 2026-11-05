@@ -49,7 +49,8 @@ class BookActivity : AppCompatActivity() {
     private var genres = mutableListOf<String>()
     private val tiles by lazy {
         listOf(b.stReading to Book.STATUS_READING, b.stFinished to Book.STATUS_FINISHED,
-            b.stPaused to Book.STATUS_PAUSED, b.stAbandoned to Book.STATUS_ABANDONED)
+            b.stPaused to Book.STATUS_PAUSED, b.stAbandoned to Book.STATUS_ABANDONED,
+            b.stRereading to Book.STATUS_REREADING)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -129,6 +130,7 @@ class BookActivity : AppCompatActivity() {
             updateGenres()
 
             showBookStats(bk)
+            showReadings(bk)
 
             val launch = packageManager.getLaunchIntentForPackage(bk.appPackage)
             if (launch != null) {
@@ -160,7 +162,35 @@ class BookActivity : AppCompatActivity() {
             book = fresh
             endDate = fresh.endDate
             updateDates()
+            showReadings(fresh)
         }
+    }
+
+    /**
+     * Прочтения — только у книги, которую перечитывают после первой карточки:
+     * «Первое: с 2 по 19 октября 2026, 7 ч 12 мин», … и «Всего за все прочтения».
+     */
+    private suspend fun showReadings(bk: Book) {
+        val parts = com.readingtracker.data.Readings.parts(bk, db.readingDao().forBook(bk.id), db.sessionDao().getSessionsForBook(bk.id))
+        if (parts.size < 2) { b.tvReadings.visibility = View.GONE; return }
+        val text = buildString {
+            for (p in parts) {
+                val r = p.reading
+                val shown = bk.copy(startDate = r.startDate, endDate = r.endDate, status = r.status)
+                val state = when (r.status) {
+                    Book.STATUS_REREADING, Book.STATUS_READING -> ", идёт"
+                    Book.STATUS_PAUSED -> ", отложено"
+                    Book.STATUS_ABANDONED -> ", брошено"
+                    else -> ""
+                }
+                append(com.readingtracker.data.Readings.ordinal(r.number)).append(": ")
+                    .append(com.readingtracker.export.Exporter.whenText(shown)).append(state)
+                    .append(", ").append(formatMinutes(p.minutes)).append('\n')
+            }
+            append("Всего за все прочтения: ").append(formatMinutes(parts.sumOf { it.minutes }))
+        }
+        b.tvReadings.text = text
+        b.tvReadings.visibility = View.VISIBLE
     }
 
     private suspend fun showBookStats(bk: Book) {
@@ -249,7 +279,7 @@ class BookActivity : AppCompatActivity() {
 
     private fun setEnd(date: Long) {
         endDate = date
-        if (status == Book.STATUS_READING || status == Book.STATUS_PAUSED) setStatusKeepingEnd(Book.STATUS_FINISHED, date)
+        if (Book.isOpen(status)) setStatusKeepingEnd(Book.STATUS_FINISHED, date)
         updateDates()
     }
 
@@ -262,7 +292,9 @@ class BookActivity : AppCompatActivity() {
             val fresh = db.bookDao().getBookById(id) ?: return@launch
             val fixed = fresh.copy(endDate = end)
             db.bookDao().updateBook(fixed)
+            BookActions.syncLastReading(this@BookActivity, fixed)
             book = fixed
+            showReadings(fixed)
         }
     }
 
@@ -300,10 +332,17 @@ class BookActivity : AppCompatActivity() {
         }
         var updated = BookActions.applyStatus(base, status)
         // Явно выбранная дата окончания сохраняется
-        if (endDate != null && status != Book.STATUS_READING) updated = updated.copy(endDate = endDate)
+        if (endDate != null && !Book.isReading(status)) updated = updated.copy(endDate = endDate)
 
         lifecycleScope.launch {
-            if (book == null) db.bookDao().insertBook(updated) else db.bookDao().updateBook(updated)
+            if (book == null) {
+                val id = db.bookDao().insertBook(updated)
+                // Новая карточка сразу с «Перечитываю» — в статистику перечитываний
+                if (status == Book.STATUS_REREADING) BookActions.markNewAsReread(this@BookActivity, id)
+            } else {
+                db.bookDao().updateBook(updated)
+                BookActions.syncLastReading(this@BookActivity, updated)
+            }
             WidgetUpdater.update(this@BookActivity)
             Toast.makeText(this@BookActivity, "Сохранено", Toast.LENGTH_SHORT).show()
             finish()

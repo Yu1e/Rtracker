@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.readingtracker.data.Book
+import com.readingtracker.data.Reading
+import com.readingtracker.data.Readings
 import com.readingtracker.data.ReadingSession
 import com.readingtracker.ui.book.formatMinutes
 import java.time.Instant
@@ -59,12 +61,23 @@ object Exporter {
     fun parseTags(s: String): List<String> =
         s.split(Regex("[,;\\s]+")).map { it.trim().trimStart('#') }.filter { it.isNotEmpty() }.distinct()
 
-    fun build(job: ExportJob, allBooks: List<Book>, allSessions: List<ReadingSession>): List<OutFile> {
-        val books = allBooks.filter { it.status in job.statuses }
+    fun build(job: ExportJob, allBooks: List<Book>, allSessions: List<ReadingSession>,
+              readings: List<Reading> = emptyList()): List<OutFile> {
+        // «читаю» включает перечитывание
+        val st = if (Book.STATUS_READING in job.statuses) job.statuses + Book.STATUS_REREADING else job.statuses
+        val books = allBooks.filter { it.status in st }
         val ids = books.map { it.id }.toSet()
         val sessions = allSessions.filter { it.bookId in ids }
-        return if (job.books) bookFiles(job, books) else statsFiles(job, books, sessions)
+        partsOf = readings.groupBy { it.bookId }.mapNotNull { (id, rs) ->
+            val bk = allBooks.firstOrNull { it.id == id } ?: return@mapNotNull null
+            id to Readings.parts(bk, rs, allSessions)
+        }.toMap()
+        return if (job.books) bookFiles(job, books)
+        else statsFiles(job, books, sessions, Readings.expand(books, sessions, readings))
     }
+
+    /** Прочтения перечитанных книг (для полей «Когда», «Сколько», «Всего»). */
+    private var partsOf: Map<Long, List<Readings.Part>> = emptyMap()
 
     /** Записать файлы в папку; одноимённые перезаписываются. Возвращает число файлов. */
     fun write(context: Context, folder: Uri, files: List<OutFile>): Int {
@@ -101,13 +114,14 @@ object Exporter {
         Book.STATUS_FINISHED -> "дочитана"
         Book.STATUS_ABANDONED -> "брошена"
         Book.STATUS_PAUSED -> "отложена"
+        Book.STATUS_REREADING -> "перечитываю"
         else -> s
     }
 
     /** «с 2 по 19 октября 2026», «с 28 сентября по 3 октября 2026», «с 2 октября 2026». */
     fun whenText(b: Book): String {
         val a = b.startDate.date()
-        val end = b.endDate?.takeIf { b.status != Book.STATUS_READING }?.date()
+        val end = b.endDate?.takeIf { !Book.isReading(b.status) }?.date()
         fun full(d: LocalDate) = "${d.dayOfMonth} ${MONTHS_GEN[d.monthValue - 1]} ${d.year}"
         return when {
             end == null || end.isBefore(a) -> "с ${full(a)}"
@@ -132,11 +146,22 @@ object Exporter {
             val g = Book.splitGenres(b.genres)
             if (g.isEmpty()) field("Жанр", "") else out += g.joinToString(", ") { "(Жанр:: $it)" }
         }
+        // Перечитанная книга: «Когда» и «Сколько» по прочтениям, через запятую, и «Всего»
+        val parts = partsOf[b.id]?.takeIf { it.size >= 2 }
         if (BookField.STATUS in f) {
             field("Статус", statusWord(b.status))
-            field("Когда", whenText(b))
+            if (parts == null) field("Когда", whenText(b))
+            else out += parts.joinToString(", ") {
+                "(Когда:: ${whenText(b.copy(startDate = it.reading.startDate, endDate = it.reading.endDate, status = it.reading.status))})"
+            }
         }
-        if (BookField.TIME in f) field("Сколько", if (b.totalMinutes > 0) formatMinutes(b.totalMinutes) else "")
+        if (BookField.TIME in f) {
+            if (parts == null) field("Сколько", if (b.totalMinutes > 0) formatMinutes(b.totalMinutes) else "")
+            else {
+                out += parts.joinToString(", ") { "(Сколько:: ${if (it.minutes > 0) formatMinutes(it.minutes) else ""})" }
+                field("Всего", formatMinutes(parts.sumOf { it.minutes }))
+            }
+        }
         if (BookField.STATUS in f) field("Источник", b.appName)
         if (BookField.TIME in f) field("Оценка", b.rating?.let { "${stars(it)} $it из 10" } ?: "")
         return out
@@ -231,7 +256,7 @@ object Exporter {
         for (r in t.rows) append(r.joinToString(";") { cell(it) }).append("\r\n")
     }
 
-    private fun statsFiles(job: ExportJob, books: List<Book>, sessions: List<ReadingSession>): List<OutFile> {
+    private fun statsFiles(job: ExportJob, books: List<Book>, sessions: List<ReadingSession>, byReading: List<Book>): List<OutFile> {
         val now = System.currentTimeMillis()
         val today = now.date()
         val first = (sessions.map { it.startTime } + books.map { it.startDate }).minOrNull()?.date() ?: today
@@ -278,8 +303,8 @@ object Exporter {
                 listOf("лучший день", bestDay?.let { "${it.key.format(dayFmt)} — ${fmt(it.value)}" } ?: "—"),
                 listOf("дней подряд, лучшая серия", "$best"),
                 listOf("книг начато", "${books.count { inPeriod(it.startDate, from, to) }}"),
-                listOf("книг дочитано", "${books.count { it.status == Book.STATUS_FINISHED && inPeriod(it.endDate, from, to) }}"),
-                listOf("книг брошено", "${books.count { it.status == Book.STATUS_ABANDONED && inPeriod(it.endDate, from, to) }}")
+                listOf("книг дочитано", "${byReading.count { it.status == Book.STATUS_FINISHED && inPeriod(it.endDate, from, to) }}"),
+                listOf("книг брошено", "${byReading.count { it.status == Book.STATUS_ABANDONED && inPeriod(it.endDate, from, to) }}")
             )
             if (manualTotal >= 0.5) rows.add(1, listOf("из них внесено вручную", fmt(manualTotal)))
             tables += Table("итоги", listOf("показатель", "значение"), rows)

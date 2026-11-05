@@ -49,7 +49,21 @@ class BooksFragment : Fragment() {
             ManualTimer.stop(ctx)
             return
         }
-        if (book.status != Book.STATUS_READING) vm.setStatus(book, Book.STATUS_READING)
+        // Дочитанная или брошенная книга: таймер — значит перечитывание, сначала спросить
+        if (book.status == Book.STATUS_FINISHED || book.status == Book.STATUS_ABANDONED) {
+            val name = book.title.ifBlank { book.author }.ifBlank { "Без названия" }
+            androidx.appcompat.app.AlertDialog.Builder(ctx)
+                .setMessage("«$name» уже есть в трекере, статус «${com.readingtracker.export.Exporter.statusWord(book.status)}». Хочешь перечитать?")
+                .setPositiveButton("Да, перечитаю") { _, _ ->
+                    vm.setStatus(book, Book.STATUS_REREADING)
+                    ManualTimer.start(ctx, book.id)
+                    Toast.makeText(ctx, ManualTimer.hint(), Toast.LENGTH_LONG).show()
+                }
+                .setNegativeButton("Остановить трекер", null)
+                .show()
+            return
+        }
+        if (!Book.isReading(book.status)) vm.setStatus(book, Book.STATUS_READING)
         ManualTimer.start(ctx, book.id)
         Toast.makeText(ctx, ManualTimer.hint(), Toast.LENGTH_LONG).show()
     }
