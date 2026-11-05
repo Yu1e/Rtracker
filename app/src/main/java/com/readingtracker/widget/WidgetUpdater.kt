@@ -92,7 +92,12 @@ object WidgetUpdater {
             val label = if (i == 6) "сег" else day.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("ru"))
             v.setTextViewText(dayIds[i], label)
             v.setInt(dayIds[i], "setBackgroundResource", cellBg[level(m)])
-            v.setTextColor(dayIds[i], if (i == 6) 0xFFF2F2F0.toInt() else 0xFFB5B5B0.toInt())
+            // На светлых клетках (мало минут) текст тёмный, на тёмных и пустых — светлый
+            v.setTextColor(dayIds[i], when {
+                level(m) in 1..2 -> 0xFF0F1E33.toInt()
+                i == 6 -> 0xFFF2F2F0.toInt()
+                else -> 0xFFB5B5B0.toInt()
+            })
         }
 
         val book = s.currentBook

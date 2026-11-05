@@ -61,7 +61,7 @@ object RtTheme {
     fun accent(c: Context): Int =
         if (style(c) == Style.MONO) Ribbons.accent(c) else RtColors.c(c, R.color.rt_accent)
 
-    /** Ступени теплокарты: 0 — нейтральная клетка, 1–4 — всё насыщеннее к цвету акцента. */
+    /** Ступени теплокарты: 0 — нейтральная клетка, 1–4 — во всех темах от светлого к тёмному и сочному. */
     fun heat(c: Context, level: Int): Int {
         if (isGlass(c)) {
             // Стекло: фиолетовый с широким размахом (без розового). В обеих темах чем больше минут,
@@ -74,7 +74,17 @@ object RtTheme {
         val zero = RtColors.c(c, R.color.rt_heat0)
         if (level <= 0) return zero
         if (isEink(c)) return intArrayOf(0xFFBBBBBB.toInt(), 0xFF888888.toInt(), 0xFF444444.toInt(), 0xFF000000.toInt())[(level - 1).coerceIn(0, 3)]
+        val a = accent(c)
+        if (RtColors.isNight(c)) {
+            // Тёмная тема: тоже чем больше минут, тем темнее и сочнее — от бледного оттенка акцента к густому
+            return when ((level - 1).coerceIn(0, 3)) {
+                0 -> RtColors.mix(a, android.graphics.Color.WHITE, 0.78f)
+                1 -> RtColors.mix(a, android.graphics.Color.WHITE, 0.45f)
+                2 -> a
+                else -> RtColors.mix(a, android.graphics.Color.BLACK, 0.3f)
+            }
+        }
         val t = floatArrayOf(0.3f, 0.55f, 0.8f, 1f)[(level - 1).coerceIn(0, 3)]
-        return RtColors.mix(if (isGlass(c)) RtColors.withAlpha(accent(c), 0.15f) else zero, accent(c), t)
+        return RtColors.mix(zero, a, t)
     }
 }

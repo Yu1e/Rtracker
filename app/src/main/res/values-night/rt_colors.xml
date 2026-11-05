@@ -22,10 +22,10 @@
     <color name="rt_ring_prog2">#888780</color>
 
     <color name="rt_bar0">#2E2E2B</color>
-    <color name="rt_bar1">#4A4945</color>
-    <color name="rt_bar2">#77756E</color>
-    <color name="rt_bar3">#B4B2A9</color>
-    <color name="rt_bar4">#C4C2BA</color>
+    <color name="rt_bar1">#E2E0D8</color>
+    <color name="rt_bar2">#B4B2A9</color>
+    <color name="rt_bar3">#888780</color>
+    <color name="rt_bar4">#5F5E5A</color>
     <color name="rt_bar_zero_text">#4A4945</color>
 
     <color name="rt_cover">#1F1F1D</color>
