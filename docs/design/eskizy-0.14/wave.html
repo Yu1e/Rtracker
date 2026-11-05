@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#d9d4ea;font-family:Rubik,system-ui,sans-serif;padding:24px;width:1560px}
+.cap{font-size:15px;font-weight:600;color:#1E1838;margin:0 0 8px 4px}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:22px}
+.ph{width:360px;border-radius:22px;padding:14px;box-sizing:border-box}
+.dk{background:radial-gradient(circle at 20% 20%,#3a2a8a 0,transparent 50%),radial-gradient(circle at 85% 80%,#6a1f55 0,transparent 45%),#0E0C1F;color:#F3F0FF}
+.lt{background:radial-gradient(circle at 15% 20%,#e7dcff 0,transparent 45%),radial-gradient(circle at 85% 60%,#ffe0ef 0,transparent 40%),#F4F1FB;color:#1E1838}
+.card{border-radius:18px;padding:12px 14px;position:relative}
+.dk .card{background:#ffffff14;border:1px solid #ffffff2e}.lt .card{background:#ffffff8c;border:1px solid #fff}
+.lbl{font-size:13px;opacity:.75;display:flex;justify-content:space-between}.lbl b{font-size:22px;opacity:1}
+</style></head><body><div id="o"></div>
+<script>
+const W=310,H=120,mid=60,A=26;
+const COL=["#FF3B3B","#FF6A2E","#FF9A1F","#FFC21F","#FFE14A","#3DF5C0","#2EE6FF","#4F8BFF","#7B5CFF","#B06BFF"];
+function pt(t){return [14+t*(W-28), mid+A*Math.sin(2*Math.PI*t)]}
+function star(x,y,r,fill,stroke,sw){let p='';for(let k=0;k<10;k++){const rr=k%2?r*.45:r,a=(k*36-90)*Math.PI/180;p+=(k?'L':'M')+(x+Math.cos(a)*rr).toFixed(1)+' '+(y+Math.sin(a)*rr).toFixed(1)}return `<path d="${p}Z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"/>`}
+function wave(r,dark,finger){let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><defs><filter id="g${r}${dark}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<linearGradient id="lg${r}${dark}" x1="0" x2="1"><stop offset="0" stop-color="#FF3B3B"/><stop offset=".25" stop-color="#FF9A1F"/><stop offset=".48" stop-color="#FFE14A"/><stop offset=".55" stop-color="#3DF5C0"/><stop offset=".75" stop-color="#4F8BFF"/><stop offset="1" stop-color="#B06BFF"/></linearGradient>
+<clipPath id="cl${r}${dark}"><rect x="0" y="0" width="${pt(r/10)[0]}" height="${H}"/></clipPath></defs>`;
+ let d='';for(let i=0;i<=100;i++){const [x,y]=pt(i/100);d+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1)}
+ s+=`<path d="${d}" fill="none" stroke="${dark?'#ffffff26':'#1E183822'}" stroke-width="6" stroke-linecap="round"/>`;
+ if(r>0) s+=`<path d="${d}" fill="none" stroke="url(#lg${r}${dark})" stroke-width="6" stroke-linecap="round" clip-path="url(#cl${r}${dark})" filter="url(#g${r}${dark})"/>`;
+ // нулевая звезда
+ const [x0,y0]=pt(0); s+=star(x0,y0,9,'none',dark?'#BDB6E0':'#9A94B5',1.6);
+ for(let i=1;i<=10;i++){const [x,y]=pt(i/10.4+0.02);const rr=9+i*0.7;const on=i<=r;
+  if(on){s+=`<g filter="url(#g${r}${dark})">${star(x,y,rr,COL[i-1],'#fff',1)}</g>`;
+   for(let k=0;k<(i==r?6:2);k++){const a=(k*67+i*29)*Math.PI/180,dd=rr+6+((k*13+i*7)%12);s+=star(x+Math.cos(a)*dd,y+Math.sin(a)*dd,2+((k+i)%3),COL[(i+k)%10],'none',0)}}
+  else s+=star(x,y,rr,'none',dark?'#ffffff40':'#1E183833',1.4)}
+ if(finger&&r>0){const [x,y]=pt(r/10.4+0.02);s+=`<circle cx="${x+4}" cy="${y+26}" r="14" fill="${dark?'#ffffff30':'#1E183820'}"/>`}
+ return s+'</svg>'}
+function card(r,dark){const lab=r==0?'без оценки':`${r} <span style="font-size:13px;opacity:.7">из 10</span>`;
+ return `<div class="ph ${dark?'dk':'lt'}"><div class="card"><div class="lbl"><span>оценка</span><b>${lab}</b></div>${wave(r,dark,true)}</div></div>`}
+let h=`<p class="cap">Оценка-волна: слева незажжённая звезда — «без оценки». Шкала — волна: в левой половине провал вниз (плохие оценки, красный → жёлтый), в правой подъём (хорошие, мятный → голубой → синий → фиолетовый). Ведёшь пальцем слева направо где угодно над шкалой — звёзды зажигаются по одной с сиянием и рассыпают мелкие звёздочки; последняя зажжённая искрит сильнее всех. Звёзды к правому краю чуть крупнее.</p>`;
+h+=`<div class="row">${[0,3,7,10].map(r=>card(r,true)).join('')}</div>`;
+h+=`<p class="cap">То же на светлом стекле</p><div class="row">${[3,10].map(r=>card(r,false)).join('')}</div>`;
+document.getElementById('o').innerHTML=h;
+</script></body></html>
