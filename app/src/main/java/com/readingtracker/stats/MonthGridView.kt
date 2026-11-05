@@ -15,7 +15,8 @@ import com.readingtracker.ui.RtTheme
 import java.time.LocalDate
 
 /**
- * Календарь текущего месяца: клетки по семь в ряд, с первого числа. В прошедших днях и сегодня —
+ * Календарь текущего месяца по дням недели (пн…вс), как в обычном календаре: если первое число —
+ * воскресенье, в верхнем ряду одна клетка справа; нижний ряд может быть неполным. Без подписей. В прошедших днях и сегодня —
  * минуты чтения (не часы), в будущих — число месяца. Цвет клетки — по минутам. Тыц по прошедшему
  * дню — onDaySelected с датой и минутами.
  */
@@ -36,6 +37,8 @@ class MonthGridView @JvmOverloads constructor(
 
     private val first get() = today.withDayOfMonth(1)
     private val days get() = today.lengthOfMonth()
+    /** Сколько пустых мест перед первым числом: понедельник — 0, воскресенье — 6. */
+    private val offset get() = first.dayOfWeek.value - 1
 
     fun setData(dayMinutes: Map<LocalDate, Long>, today: LocalDate) {
         data = dayMinutes; this.today = today
@@ -54,7 +57,7 @@ class MonthGridView @JvmOverloads constructor(
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val gap = 5 * d
         val cell = (w - gap * 6) / 7f
-        val rows = (days + 6) / 7
+        val rows = (offset + days + 6) / 7
         setMeasuredDimension(w, (rows * cell + (rows - 1) * gap).toInt() + 2)
     }
 
@@ -68,7 +71,7 @@ class MonthGridView @JvmOverloads constructor(
         val radius = if (eink) 3 * d else 8 * d
         for (i in 0 until days) {
             val day = first.plusDays(i.toLong())
-            val col = i % 7; val row = i / 7
+            val col = (offset + i) % 7; val row = (offset + i) / 7
             val x = col * (cell + gap); val y = row * (cell + gap)
             rect.set(x + 0.75f * d, y + 0.75f * d, x + cell - 0.75f * d, y + cell - 0.75f * d)
             val future = day.isAfter(today)
@@ -112,7 +115,7 @@ class MonthGridView @JvmOverloads constructor(
             val cell = (width - gap * 6) / 7f
             val col = (event.x / (cell + gap)).toInt()
             val row = (event.y / (cell + gap)).toInt()
-            val i = row * 7 + col
+            val i = row * 7 + col - offset
             if (col in 0..6 && i in 0 until days) {
                 val day = first.plusDays(i.toLong())
                 if (!day.isAfter(today)) {
