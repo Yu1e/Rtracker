@@ -29,6 +29,10 @@ object Prefs {
             System.currentTimeMillis() - prefs.getLong("pending_time_$pkg", 0) < 3 * 60_000
     }
 
+    /** Свежая книга-ожидание (не стирает её) или null. */
+    fun peekPendingBook(c: Context, pkg: String): Long? =
+        if (hasPendingBook(c, pkg)) p(c).getLong("pending_$pkg", -1) else null
+
     // Экран «оформление» при первом запуске показан
     fun welcomed(c: Context): Boolean = p(c).getBoolean("welcomed", false)
     fun setWelcomed(c: Context) { p(c).edit().putBoolean("welcomed", true).apply() }
@@ -89,4 +93,8 @@ object Prefs {
     /** Праздничные эффекты за достижения. */
     fun effects(c: Context): Boolean = p(c).getBoolean("effects", true)
     fun setEffects(c: Context, v: Boolean) { p(c).edit().putBoolean("effects", v).apply() }
+
+    /** Цитаты через трекер: пузырёк после «Копировать» в читалке. */
+    fun quotes(c: Context): Boolean = p(c).getBoolean("quotes", true)
+    fun setQuotes(c: Context, v: Boolean) { p(c).edit().putBoolean("quotes", v).apply() }
 }

@@ -114,8 +114,17 @@
             android:text="показать эффект"
             style="@style/Widget.MaterialComponents.Button.TextButton" />
 
+        <!-- Цитаты -->
+        <TextView style="@style/SettingsSection" android:text="цитаты" />
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/swQuotes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:text="цитаты: копируешь текст в читалке — пузырёк, чтобы записать цитату" />
+
         <!-- Резервная копия -->
-        <TextView style="@style/SettingsSection" android:text="Резервная копия" />
+        <TextView style="@style/SettingsSection" android:text="резервная копия" />
         <TextView
             android:id="@+id/tvBackupStatus"
             android:layout_width="match_parent"
@@ -142,7 +151,7 @@
             style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
         <!-- Перелистывания -->
-        <TextView style="@style/SettingsSection" android:text="Пауза и разведка" />
+        <TextView style="@style/SettingsSection" android:text="пауза и разведка" />
         <TextView
             android:id="@+id/tvA11yStatus"
             android:layout_width="match_parent"
@@ -182,7 +191,7 @@
             style="@style/Widget.MaterialComponents.Button.TextButton" />
 
         <!-- Проверка -->
-        <TextView style="@style/SettingsSection" android:text="Проверка" />
+        <TextView style="@style/SettingsSection" android:text="проверка" />
         <TextView
             android:id="@+id/tvReport"
             android:layout_width="match_parent"

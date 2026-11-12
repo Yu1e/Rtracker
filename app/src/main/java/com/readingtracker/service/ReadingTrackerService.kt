@@ -662,6 +662,8 @@ class ReadingTrackerService : Service() {
             }
         }
 
+        checkFinished(pkg)
+
         val title = ReaderScreen.title ?: return
         if (ReaderScreen.titlePkg != pkg || ReaderScreen.titleAt < enteredAt) return
         if (formOpen || ReaderScreen.sameTitle(title, handledTitle)) return
@@ -698,6 +700,39 @@ class ReadingTrackerService : Service() {
                             title = title, author = author ?: "")
                     }
                 }
+            }
+        }
+    }
+
+    private var finishedSeenAt = 0L
+
+    /** Читалка поздравила с прочитанной книгой (Яндекс Книги) — «Дочитана?» поверх читалки. */
+    private fun checkFinished(pkg: String) {
+        val at = ReaderScreen.finishedAt
+        if (at <= finishedSeenAt || ReaderScreen.finishedPkg != pkg || at < enteredAt) return
+        if (formOpen) return            // спросим, когда закроется другой пузырёк
+        finishedSeenAt = at
+        val title = ReaderScreen.finishedTitle ?: return
+        val activeId = activeBookId
+        scope.launch {
+            val books = db.bookDao().getAllBooksSync()
+            val bk = books.firstOrNull { it.id == activeId && ReaderScreen.sameTitle(it.title, title) }
+                ?: books.filter { Book.isOpen(it.status) && ReaderScreen.sameTitle(it.title, title) }
+                    .let { list -> list.firstOrNull { it.appPackage == pkg } ?: list.firstOrNull() }
+                ?: return@launch
+            withContext(Dispatchers.Main) {
+                if (foregroundReadingApp != pkg || formOpen) return@withContext
+                formOpen = true
+                val appName = trackedApps[pkg] ?: pkg
+                val name = bk.title.ifBlank { bk.author }
+                overlay.showQuestion(appName,
+                    "$appName поздравляют: «$name» прочитана. Дочитана?",
+                    "Дочитана", "Ещё читаю",
+                    onYes = {
+                        overlay.hide(); formOpen = false
+                        scope.launch { BookActions.setStatus(this@ReadingTrackerService, bk.id, Book.STATUS_FINISHED) }
+                    },
+                    onNo = { overlay.hide(); formOpen = false })
             }
         }
     }

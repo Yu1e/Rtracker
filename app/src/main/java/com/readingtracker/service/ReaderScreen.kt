@@ -37,6 +37,19 @@ object ReaderScreen {
 
     fun seeUrl(u: String) { webUrl = u; webUrlAt = System.currentTimeMillis() }
 
+    /** Читалка сама сказала, что книга прочитана (Яндекс Книги: «Поздравляем! Вы прочитали еще одну книгу»). */
+    @Volatile var finishedTitle: String? = null
+        private set
+    @Volatile var finishedPkg: String? = null
+        private set
+    @Volatile var finishedAt = 0L
+        private set
+
+    fun seeFinished(pkg: String, t: String) {
+        if (pkg == finishedPkg && t == finishedTitle && System.currentTimeMillis() - finishedAt < 60_000) return
+        finishedTitle = t; finishedPkg = pkg; finishedAt = System.currentTimeMillis()
+    }
+
     private val PAGES = Regex("(\\d+)\\s*из\\s*(\\d+)")
 
     /** Отметка времени обновляется и при том же названии: значит, книга сейчас на экране. */

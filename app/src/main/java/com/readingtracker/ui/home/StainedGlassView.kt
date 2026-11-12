@@ -21,8 +21,9 @@ import kotlin.random.Random
 
 /**
  * «дней подряд» витражом: окно из 30 осколков цветного стекла в тёмных переплётах.
- * Прочитанный день — осколок загорается; заполнение с правого верхнего осколка,
- * справа налево, ряд за рядом. Узор осколков и их цвета при каждом открытии новые.
+ * Прочитанный день — осколок загорается. Заполнение змейкой из угла, при каждом открытии
+ * один из восьми порядков (четыре угла × по рядам или по столбцам), не тот, что в прошлый раз.
+ * Узор осколков и их цвета тоже новые.
  * Каждые 30 дней окно начинается заново, о пройденных тридцати говорит розетка у заголовка.
  */
 class StainedGlassView @JvmOverloads constructor(
@@ -74,11 +75,19 @@ class StainedGlassView @JvmOverloads constructor(
             seeds += floatArrayOf(
                 (c + 0.5f + (rnd.nextFloat() * 2 - 1) * 0.32f) * cw,
                 (r + 0.5f + (rnd.nextFloat() * 2 - 1) * 0.30f) * rh,
-                r.toFloat()
+                r.toFloat(), c.toFloat()
             )
         }
-        // Справа сверху: по рядам сверху вниз, в ряду справа налево
-        val ordered = seeds.sortedWith(compareBy<FloatArray>({ it[2] }, { -it[0] }))
+        // Порядок заполнения выбирается раз на узор (при смене размера не меняется)
+        if (variantSeed != seed) {
+            var v = rnd.nextInt(8)
+            if (v == lastVariant) v = (v + 1 + rnd.nextInt(7)) % 8
+            variant = v; variantSeed = seed; lastVariant = v
+        }
+        val fromTop = variant and 1 == 0
+        val fromRight = variant and 2 == 0
+        val byRows = variant and 4 == 0
+        val ordered = seeds.sortedBy { snakeIndex(it[2].toInt(), it[3].toInt(), fromTop, fromRight, byRows) }
         val palette = HOLO.shuffled(rnd)
         cells = ordered.mapIndexed { i, s ->
             var poly = listOf(floatArrayOf(0f, 0f), floatArrayOf(w, 0f), floatArrayOf(w, h), floatArrayOf(0f, h))
@@ -96,6 +105,25 @@ class StainedGlassView @JvmOverloads constructor(
             }
             path.close()
             Cell(path, bounds, palette[i % palette.size])
+        }
+    }
+
+    private var variant = 0
+    private var variantSeed = Long.MIN_VALUE
+
+    /**
+     * Место осколка (ряд r, столбец c) в змейке: из угла (сверху/снизу, справа/слева),
+     * по рядам или по столбцам; каждый следующий ряд (столбец) идёт обратно.
+     */
+    private fun snakeIndex(r: Int, c: Int, fromTop: Boolean, fromRight: Boolean, byRows: Boolean): Int {
+        val rr = if (fromTop) r else ROWS - 1 - r
+        val cc = if (fromRight) COLS - 1 - c else c
+        return if (byRows) {
+            val along = if (rr % 2 == 0) cc else COLS - 1 - cc
+            rr * COLS + along
+        } else {
+            val along = if (cc % 2 == 0) rr else ROWS - 1 - rr
+            cc * ROWS + along
         }
     }
 
@@ -179,6 +207,9 @@ class StainedGlassView @JvmOverloads constructor(
         const val CELLS = 30
         private const val COLS = 6
         private const val ROWS = 5
+
+        /** Порядок заполнения в прошлый раз — чтобы следующий был другим. */
+        private var lastVariant = -1
 
         private fun c(v: Long) = v.toInt()
 

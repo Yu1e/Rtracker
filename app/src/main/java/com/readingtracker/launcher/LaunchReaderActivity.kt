@@ -10,6 +10,7 @@ import com.readingtracker.Prefs
 import com.readingtracker.data.AppDatabase
 import com.readingtracker.data.Book
 import com.readingtracker.diag.Diag
+import com.readingtracker.service.ReaderAccessibilityService
 import com.readingtracker.service.ReadingTrackerService
 import com.readingtracker.ui.RtColors
 import com.readingtracker.ui.RtTheme
@@ -21,6 +22,8 @@ import kotlinx.coroutines.runBlocking
  * Если у читалки нет открытой книги — сначала окно: выбирать без счёта или считать сразу.
  */
 class LaunchReaderActivity : Activity() {
+
+    companion object { const val SVET = "ru.rsl.svetApp" }
 
     private var pkg: String? = null
     private var launch: Intent? = null
@@ -45,16 +48,19 @@ class LaunchReaderActivity : Activity() {
             Toast.makeText(this, "Трекер не настроен: открой его и дай разрешения", Toast.LENGTH_LONG).show()
             open(); return
         }
-        if (Prefs.hasPendingBook(this, pkg)) { start(choosing = false); return }
-
-        // Короткий запрос к базе: есть ли у читалки книга, которая читается или отложена
-        val hasOpenBook = try {
+        // Короткий запрос к базе: книга, открытая через трекер, или последняя книга этой читалки
+        val pending = Prefs.peekPendingBook(this, pkg)
+        var failed = false
+        val book = try {
             runBlocking {
                 val db = AppDatabase.getInstance(this@LaunchReaderActivity)
-                val last = db.sessionDao().getLastBookIdForApp(pkg)?.let { db.bookDao().getBookById(it) }
-                last != null && Book.isOpen(last.status)
+                (pending ?: db.sessionDao().getLastBookIdForApp(pkg))?.let { db.bookDao().getBookById(it) }
             }
-        } catch (e: Exception) { true }
+        } catch (e: Exception) { failed = true; null }
+        val hasOpenBook = pending != null || failed || (book != null && Book.isOpen(book.status))
+
+        // «Свет» открывается на «Главной»: служба сама нажмёт «Мои книги» и книгу (нет открытой — только «Мои книги»)
+        if (pkg == SVET) ReaderAccessibilityService.svetOpen(book?.takeIf { Book.isOpen(it.status) }?.title?.ifBlank { null })
 
         if (hasOpenBook) start(choosing = false) else askNoBook()
     }

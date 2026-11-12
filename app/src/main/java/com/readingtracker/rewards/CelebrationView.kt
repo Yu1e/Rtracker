@@ -36,7 +36,8 @@ import kotlin.random.Random
 /**
  * Праздник поверх экрана: эффект и карточка с поводом посередине.
  * Ленты-ляссе за дочитанную книгу, бумажное конфетти, мыльные пузыри, салют из ромбиков,
- * звездопад, искры. Долгие и густые: волна за волной. На чернилах — только карточка, без движения. Касание закрывает.
+ * звездопад, искры. Долгие и густые: волна за волной. На чернилах — только карточка, без движения.
+ * Касания праздник не прерывают: они проходят сквозь него к экрану трекера.
  */
 @SuppressLint("ViewConstructor")
 class CelebrationView(
@@ -67,7 +68,7 @@ class CelebrationView(
     private fun color() = colors[rnd.nextInt(colors.size)]
 
     init {
-        isClickable = true
+        isClickable = false
         contentDescription = listOf(a.label, a.big, a.small).filter { it.isNotBlank() }.joinToString(", ")
     }
 
@@ -430,14 +431,9 @@ class CelebrationView(
 
     // ── Закрытие ──────────────────────────────────────────────────────────────
 
+    /** Касание не прерывает праздник и уходит дальше, к экрану под ним. */
     @SuppressLint("ClickableViewAccessibility")
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_DOWN) {
-            val now = SystemClock.uptimeMillis()
-            if (endAt - now > 300) { endAt = now + 300; invalidate() }
-        }
-        return true
-    }
+    override fun onTouchEvent(event: MotionEvent): Boolean = false
 
     private fun finish() {
         if (done) return

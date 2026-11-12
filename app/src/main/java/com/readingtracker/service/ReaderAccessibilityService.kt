@@ -48,6 +48,14 @@ class ReaderAccessibilityService : AccessibilityService() {
         @Volatile var webPkg: String? = null
             private set
 
+        /** «Свет» открыт трекером: дойти до книги (название) или до «Моих книг» (null). */
+        fun svetOpen(title: String?) {
+            svetTitle = title; svetAt = System.currentTimeMillis(); svetTabPressed = false
+        }
+        @Volatile private var svetTitle: String? = null
+        @Volatile private var svetAt = 0L
+        @Volatile private var svetTabPressed = false
+
         /** Счётчики событий по типам — для экрана проверки. */
         val eventTypeCounts = ConcurrentHashMap<String, Int>()
     }
@@ -250,6 +258,7 @@ class ReaderAccessibilityService : AccessibilityService() {
     // (в оглавлении), current_page_text и total_pages_text — страницы.
 
     private fun svet(pkg: String, event: AccessibilityEvent) {
+        if (svetAt > 0) try { svetAuto(pkg, event) } catch (_: Exception) {}
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
             if (clickText(event).split(' ').any { it == "Читать" }) readPressed(pkg)
             return
@@ -276,6 +285,59 @@ class ReaderAccessibilityService : AccessibilityService() {
         }
     }
 
+    // «Свет» по «читать» открывается на «Главной» (журнал 6–10 ноября). Служба нажимает вкладку
+    // «Мои книги» (описание «Мои книги Вкладка 1 из 3»), там — карточку книги: «Последняя активность
+    // 8 ноября 2026 г. Блэк Р. Как умирали динозавры…» или строку «На устройстве». Нажатие открывает книгу.
+    // Без названия (открытой книги нет) — остаёмся в «Моих книгах». Всё — не дольше 25 с после запуска.
+
+    private var svetAutoAt = 0L
+
+    private fun svetAuto(pkg: String, event: AccessibilityEvent) {
+        val now = System.currentTimeMillis()
+        if (now - svetAt > 25_000 || event.className?.toString()?.endsWith("ReaderActivity") == true) { svetAt = 0; return }
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) return
+        if (now - svetAutoAt < 400) return
+        svetAutoAt = now
+        val root = rootInActiveWindow ?: return
+        if (root.packageName?.toString() != pkg) return
+        val nodes = mutableListOf<Pair<AccessibilityNodeInfo, String>>()
+        fun walk(n: AccessibilityNodeInfo, depth: Int) {
+            if (nodes.size >= 200 || depth > 30) return
+            n.desc()?.let { nodes += n to it }
+            for (k in 0 until n.childCount) walk(n.getChild(k) ?: continue, depth + 1)
+        }
+        walk(root, 0)
+        val onMyBooks = nodes.any { it.second == "Мои книги" || it.second.startsWith("Последняя активность") }
+        if (onMyBooks) {
+            val t = svetTitle?.let { ReaderScreen.normalize(it).take(30) }
+            if (t.isNullOrEmpty()) { svetAt = 0; return }
+            val hit = nodes.firstOrNull { it.second.startsWith("Последняя активность") && ReaderScreen.normalize(it.second).contains(t) }
+                ?: nodes.firstOrNull { !it.second.startsWith("Мои книги") && ReaderScreen.normalize(it.second).contains(t) }
+            if (hit != null) {
+                clickNode(hit.first)
+                svetAt = 0
+            } else if (nodes.any { it.second.startsWith("Последняя активность") || it.second.startsWith("На устройстве") }) {
+                svetAt = 0          // список уже на экране, а книги в нём нет — дальше выбираешь сама
+            }
+            return
+        }
+        if (!svetTabPressed) {
+            val tab = nodes.firstOrNull { it.second.startsWith("Мои книги Вкладка") } ?: return
+            if (clickNode(tab.first)) svetTabPressed = true
+        }
+    }
+
+    /** Нажать узел (или ближайшего нажимаемого родителя). */
+    private fun clickNode(node: AccessibilityNodeInfo): Boolean {
+        var n: AccessibilityNodeInfo? = node
+        var depth = 0
+        while (n != null && depth < 6) {
+            if (n.isClickable && n.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+            n = n.parent; depth++
+        }
+        return node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+    }
+
     private fun collectDescs(node: AccessibilityNodeInfo, out: MutableList<String>, depth: Int) {
         if (out.size >= 120 || depth > 25) return
         (node.desc() ?: node.str())?.let { out += it }
@@ -290,6 +352,14 @@ class ReaderAccessibilityService : AccessibilityService() {
     private val YANDEX_COVER = Regex("^(.+?)\\. Автор (.+?)\\. Обложка")
 
     private fun yandex(pkg: String, event: AccessibilityEvent) {
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            // Окно конца книги иногда видно только в нажатии (журнал 8 ноября)
+            val src = event.source ?: return
+            val n = mutableListOf<Pair<Boolean, String>>()
+            collectYandex(src, n, 0)
+            yandexFinished(pkg, n)
+            return
+        }
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED) return
@@ -310,6 +380,10 @@ class ReaderAccessibilityService : AccessibilityService() {
             }
         }
 
+        // Конец книги (журнал 8 ноября): end_of_book_title «Поздравляем! Вы прочитали еще одну книгу»,
+        // следом обложка прочитанной книги «Название. Автор …. Обложка. Прогресс: 98 процентов», ниже — советы
+        yandexFinished(pkg, nodes)
+
         // Карточка книги (журнал 8 ноября): bookHeaderTitle — название, bookHeaderAuthors — автор
         val headTitle = ids(pkg, root, "bookHeaderTitle").firstNotNullOfOrNull { it.str() }
         val headAuthor = ids(pkg, root, "bookHeaderAuthors").firstNotNullOfOrNull { it.str() }
@@ -321,6 +395,13 @@ class ReaderAccessibilityService : AccessibilityService() {
             val m = YANDEX_COVER.find(v) ?: continue
             ReaderScreen.rememberAuthor(this, m.groupValues[1].trim(), m.groupValues[2].trim())
         }
+    }
+
+    private fun yandexFinished(pkg: String, nodes: List<Pair<Boolean, String>>) {
+        val head = nodes.indexOfFirst { !it.first && it.second.startsWith("Поздравляем! Вы прочитали") }
+        if (head < 0) return
+        nodes.drop(head).firstNotNullOfOrNull { (isDesc, v) -> if (isDesc) YANDEX_COVER.find(v) else null }
+            ?.let { ReaderScreen.seeFinished(pkg, it.groupValues[1].trim()) }
     }
 
     private fun collectYandex(node: AccessibilityNodeInfo, out: MutableList<Pair<Boolean, String>>, depth: Int) {

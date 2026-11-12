@@ -241,6 +241,10 @@ class SettingsFragment : Fragment() {
         b.swEffects.isChecked = Prefs.effects(ctx)
         b.swEffects.setOnCheckedChangeListener { _, on -> Prefs.setEffects(ctx, on) }
         b.btnTryEffect.setOnClickListener { Celebrations.demo(requireActivity()) }
+
+        b.swQuotes.setOnCheckedChangeListener(null)
+        b.swQuotes.isChecked = Prefs.quotes(ctx)
+        b.swQuotes.setOnCheckedChangeListener { _, on -> Prefs.setQuotes(ctx, on) }
     }
 
     // ── Ярлыки читалок ────────────────────────────────────────────────────────

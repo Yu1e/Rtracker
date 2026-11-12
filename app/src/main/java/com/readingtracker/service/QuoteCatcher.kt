@@ -58,6 +58,8 @@ object QuoteCatcher {
         try { ScoutLog.append(ctx, "[цитата] ${names[pkg] ?: if (pkg == ReaderAccessibilityService.webPkg) "браузер" else pkg}: $msg") } catch (_: Exception) {}
 
     fun onEvent(service: AccessibilityService, pkg: String, event: AccessibilityEvent) {
+        // Цитаты выключены в настройках
+        if (!com.readingtracker.Prefs.quotes(service)) return
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
             AccessibilityEvent.TYPE_WINDOWS_CHANGED,
