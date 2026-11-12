@@ -23,6 +23,8 @@ import com.readingtracker.data.AppDatabase
 import com.readingtracker.data.Book
 import com.readingtracker.data.Quote
 import com.readingtracker.diag.Diag
+import com.readingtracker.service.QuoteCatcher
+import com.readingtracker.service.QuoteText
 import com.readingtracker.service.ReadingTrackerService
 import com.readingtracker.ui.RtTheme
 import kotlinx.coroutines.CoroutineScope
@@ -34,13 +36,38 @@ import kotlinx.coroutines.withContext
 /**
  * Пузырёк «цитата» поверх читалки: текст из буфера (можно поправить), книга (можно сменить),
  * теги (последние — нажатием), «Сохранить» / «Поправлю потом» / «Не надо».
- * «Вся страница» — заменить текст всем, что видно на странице (удобно в «Свете»: скопировать
- * слово, взять страницу и обрезать лишнее).
+ *
+ * Если трекеру виден текст страницы («Свет», Яндекс Книги, ЛитРес, Хром), границы цитаты
+ * двигаются кнопками: начало и конец — на слово или до границы предложения («фраза»), туда и обратно.
+ * «вся страница» — вся видимая страница.
+ *
+ * «длинная» — цитата на несколько страниц: окно сворачивается в полоску у края, страницы листаешь
+ * сама, «↓ в конец» / «↑ в начало» добавляют видимую страницу. Новое «Копировать» в это время
+ * дописывается к той же цитате (в AlReader страница трекеру не видна — только так).
+ * «готово» — окно снова целиком, лишнее убирается кнопками или руками.
  */
 object QuoteOverlay {
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var current: View? = null
+
+    // ── Состояние цитаты (живёт, пока окно на экране, в том числе свёрнутым) ──
+    private var appCtx: Context? = null
+    private var pkg = ""
+    private var books: List<Book> = emptyList()
+    private var bookId: Long? = null
+    private var recentTags: List<String> = emptyList()
+    private var tagsText = ""
+    private var dehyphen = false
+    /** Текст страницы (страниц): абзацы через пустую строку. */
+    private var page = ""
+    /** Цитата — отрезок страницы [s, e); s < 0 — цитата правлена вручную и со страницей не связана. */
+    private var s = -1
+    private var e = -1
+    /** Текст цитаты, когда он не отрезок страницы. */
+    private var freeText = ""
+    private var strip = false
+    private var pagesAdded = 0
 
     private class Pal(val bg: Int, val ink: Int, val ink2: Int, val line: Int, val accent: Int, val onAccent: Int)
 
@@ -58,10 +85,15 @@ object QuoteOverlay {
         }
     }
 
-    fun show(ctx: Context, pkg: String, text: String, pageText: String) {
+    /** Окно на экране (целиком или полоской). */
+    val isOpen get() = current != null
+    /** Свёрнуто в полоску «длинная цитата»: новое «Копировать» дописывается. */
+    val isCollecting get() = current != null && strip
+
+    fun show(ctx: Context, pkg: String, text: String, pageParas: List<String>) {
         scope.launch {
             val db = AppDatabase.getInstance(ctx)
-            val (books, bookId, recentTags) = withContext(Dispatchers.IO) {
+            val (list, id, tags) = withContext(Dispatchers.IO) {
                 val all = db.bookDao().getAllBooksSync()
                 val open = all.filter { Book.isOpen(it.status) }
                 // Книга: та, что сейчас идёт в трекере; иначе последняя в этой читалке; иначе последняя начатая
@@ -73,7 +105,16 @@ object QuoteOverlay {
                 val tags = db.quoteDao().recentTagRows().flatMap { Quote.splitTags(it) }.distinct().take(14)
                 Triple(list, id, tags)
             }
-            build(ctx, pkg, text, pageText, books, bookId, recentTags)
+            hide()
+            appCtx = ctx.applicationContext
+            this@QuoteOverlay.pkg = pkg
+            books = list; bookId = id; recentTags = tags; tagsText = ""
+            dehyphen = QuoteCatcher.names[pkg] == "ЛитРес"
+            page = QuoteText.cleanPage(pageParas, dehyphen)
+            val r = QuoteText.locate(page, text)
+            if (r != null) { s = r.first; e = r.last + 1; freeText = "" } else { s = -1; e = -1; freeText = text }
+            strip = false; pagesAdded = 0
+            buildCard(ctx)
         }
     }
 
@@ -83,13 +124,114 @@ object QuoteOverlay {
         try { (v.context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeView(v) } catch (_: Exception) {}
     }
 
-    private fun build(ctx: Context, pkg: String, text: String, pageText: String,
-                      books: List<Book>, initialBook: Long?, recentTags: List<String>) {
+    private fun quoteNow(): String = if (s >= 0) page.substring(s, e) else freeText
+
+    /** Текст поправлен руками: ищем его на странице снова. false — не нашёлся. */
+    private fun sync(typed: String): Boolean {
+        if (s >= 0 && page.substring(s, e) == typed) return true
+        val r = QuoteText.locate(page, typed)
+        return if (r != null) { s = r.first; e = r.last + 1; true }
+        else { s = -1; e = -1; freeText = typed; false }
+    }
+
+    // ── Полоска «длинная цитата» ──────────────────────────────────────────────
+
+    /** Новое «Копировать», пока окно свёрнуто: кусок дописывается (или цитата растягивается до него). */
+    fun onCopied(text: String) {
+        val ctx = appCtx ?: return
+        val r = if (page.isNotEmpty()) QuoteText.locate(page, text) else null
+        if (r != null && s >= 0) {
+            if (r.first < s) s = r.first
+            if (r.last + 1 > e) e = r.last + 1
+        } else {
+            val now = quoteNow()
+            freeText = if (now.isBlank()) text else "$now $text"
+            s = -1; e = -1
+        }
+        pagesAdded++
+        toast(ctx, "Дописано к цитате")
+        buildStrip(ctx)
+    }
+
+    private fun addPage(ctx: Context, atEnd: Boolean) {
+        val paras = QuoteCatcher.pageParagraphs(pkg)
+        val add = QuoteText.cleanPage(paras, dehyphen)
+        if (add.isEmpty()) {
+            toast(ctx, "Страница не видна трекеру: выдели следующий кусок и скопируй — он допишется")
+            return
+        }
+        if (s < 0 && freeText.isNotBlank()) sync(freeText)
+        val m = QuoteText.merge(page, add, atEnd)
+        if (s >= 0) {
+            s += m.shift; e += m.shift
+            page = m.text
+            if (atEnd) e = maxOf(e, m.pageEnd) else s = minOf(s, m.pageStart)
+        } else {
+            // Цитата не на странице (правлена руками): новые абзацы дописываются к тексту
+            val fresh = add.split("\n\n").filter { it !in page.split("\n\n") }.joinToString("\n\n")
+            page = m.text
+            if (fresh.isNotEmpty()) freeText = if (atEnd) "$freeText\n\n$fresh".trim() else "$fresh\n\n$freeText".trim()
+        }
+        pagesAdded++
+        buildStrip(ctx)
+    }
+
+    private fun buildStrip(ctx: Context) {
         hide()
+        strip = true
         val d = ctx.resources.displayMetrics.density
         fun px(v: Float) = (v * d).toInt()
         val p = pal(ctx)
-        var bookId = initialBook
+        val bar = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(px(10f), px(6f), px(6f), px(6f))
+            background = GradientDrawable().apply { cornerRadius = 20 * d; setColor(p.bg); setStroke(px(1f), p.line) }
+            elevation = 8 * d
+        }
+        fun chip(t: String, filled: Boolean, onTap: () -> Unit) = TextView(ctx).apply {
+            text = t; setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextColor(if (filled) p.onAccent else p.accent)
+            setPadding(px(10f), px(7f), px(10f), px(7f))
+            background = GradientDrawable().apply {
+                cornerRadius = 16 * d
+                if (filled) setColor(p.accent) else setStroke(px(1f), p.accent)
+            }
+            setOnClickListener { onTap() }
+        }
+        bar.addView(TextView(ctx).apply {
+            text = if (pagesAdded > 0) "длинная · +$pagesAdded" else "длинная"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f); setTextColor(p.ink2)
+            setPadding(0, 0, px(6f), 0)
+        })
+        val lp = { LinearLayout.LayoutParams(-2, -2).apply { marginStart = px(4f) } }
+        bar.addView(chip("↑ в начало", false) { addPage(ctx, atEnd = false) }, lp())
+        bar.addView(chip("↓ в конец", false) { addPage(ctx, atEnd = true) }, lp())
+        bar.addView(chip("готово", true) { strip = false; buildCard(ctx) }, lp())
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            // Не забирает фокус и касания: читалка листается как обычно
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP or Gravity.END; x = px(8f); y = px(28f) }
+        try {
+            (ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager).addView(bar, params)
+            current = bar
+        } catch (ex: Exception) {
+            Diag.set(ctx, Diag.ERROR, "${Diag.time()} цитата, полоска: $ex")
+        }
+    }
+
+    // ── Окно целиком ──────────────────────────────────────────────────────────
+
+    private fun buildCard(ctx: Context) {
+        hide()
+        strip = false
+        val d = ctx.resources.displayMetrics.density
+        fun px(v: Float) = (v * d).toInt()
+        val p = pal(ctx)
 
         val card = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -122,7 +264,7 @@ object QuoteOverlay {
             setPadding(px(10f), px(8f), px(10f), px(8f))
             inputType = if (multi) InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
                 else InputType.TYPE_CLASS_TEXT
-            if (multi) { minLines = 2; maxLines = 7; isVerticalScrollBarEnabled = true; gravity = Gravity.TOP or Gravity.START }
+            if (multi) { minLines = 2; maxLines = 8; isVerticalScrollBarEnabled = true; gravity = Gravity.TOP or Gravity.START }
             else isSingleLine = true
         }
 
@@ -147,23 +289,72 @@ object QuoteOverlay {
                 bookView.text = "${bookName(bookId)}  ▾"
                 true
             }
-            try { menu.show() } catch (e: Exception) { Diag.set(ctx, Diag.ERROR, "${Diag.time()} цитата, книги: $e") }
+            try { menu.show() } catch (ex: Exception) { Diag.set(ctx, Diag.ERROR, "${Diag.time()} цитата, книги: $ex") }
         }
         card.addView(bookView)
 
         // Текст цитаты
-        val etText = field("текст цитаты", multi = true).apply { setText(text) }
+        val etText = field("текст цитаты", multi = true).apply { setText(quoteNow()) }
         card.addView(etText, LinearLayout.LayoutParams(-1, -2))
-        if (pageText.isNotBlank() && pageText.length > text.length + 20) {
-            val whole = label("вся страница", 13f, p.accent).apply {
-                setPadding(0, px(6f), 0, px(2f))
-                setOnClickListener { etText.setText(pageText); etText.requestFocus(); etText.setSelection(0) }
+
+        // Границы цитаты по тексту страницы
+        if (page.isNotEmpty()) {
+            fun step(op: () -> Unit) {
+                if (!sync(etText.text.toString())) {
+                    toast(ctx, "Текст правлен руками, на странице его не найти — кнопки тут не помогут")
+                    return
+                }
+                op()
+                etText.setText(page.substring(s, e))
             }
-            card.addView(whole)
+            fun chip(t: String, onTap: () -> Unit) = TextView(ctx).apply {
+                text = t; gravity = Gravity.CENTER
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f); setTextColor(p.accent)
+                setPadding(px(2f), px(6f), px(2f), px(6f))
+                background = GradientDrawable().apply { cornerRadius = 12 * d; setStroke(px(1f), p.line) }
+                setOnClickListener { onTap() }
+            }
+            fun row(name: String, vararg items: Pair<String, () -> Unit>) = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                addView(label(name, 12f, p.ink2), LinearLayout.LayoutParams(px(52f), -2))
+                for ((t, f) in items) addView(chip(t, f), LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = px(4f) })
+            }
+            card.addView(row("начало",
+                "＋ фраза" to { step { s = QuoteText.startPlusSentence(page, s) } },
+                "＋ слово" to { step { s = QuoteText.startPlusWord(page, s) } },
+                "− слово" to { step { s = QuoteText.startMinusWord(page, s, e) } },
+                "− фраза" to { step { s = QuoteText.startMinusSentence(page, s, e) } }
+            ), LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(8f) })
+            card.addView(row("конец",
+                "− фраза" to { step { e = QuoteText.endMinusSentence(page, s, e) } },
+                "− слово" to { step { e = QuoteText.endMinusWord(page, s, e) } },
+                "＋ слово" to { step { e = QuoteText.endPlusWord(page, e) } },
+                "＋ фраза" to { step { e = QuoteText.endPlusSentence(page, e) } }
+            ), LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(6f) })
         }
 
+        // «вся страница» и «длинная»
+        val links = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        if (page.length > quoteNow().length + 20) {
+            links.addView(label("вся страница", 13f, p.accent).apply {
+                setPadding(0, px(8f), px(18f), px(2f))
+                setOnClickListener { s = 0; e = page.length; etText.setText(page); etText.setSelection(0) }
+            })
+        }
+        links.addView(label("длинная: ещё страницы", 13f, p.accent).apply {
+            setPadding(0, px(8f), 0, px(2f))
+            setOnClickListener {
+                sync(etText.text.toString())
+                tagsText = currentTags?.text?.toString() ?: tagsText
+                hideKeyboard(ctx, etText)
+                buildStrip(ctx)
+            }
+        })
+        card.addView(links)
+
         // Теги
-        val etTags = field("теги через пробел", multi = false)
+        val etTags = field("теги через пробел", multi = false).apply { setText(tagsText) }
+        currentTags = etTags
         card.addView(etTags, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(8f) })
         if (recentTags.isNotEmpty()) {
             val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
@@ -194,20 +385,19 @@ object QuoteOverlay {
         row2.addView(no, LinearLayout.LayoutParams(0, -2, 1f))
         card.addView(row2, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(8f) })
 
-        val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        fun closeAll() { imm.hideSoftInputFromWindow(etText.windowToken, 0); hide() }
+        fun closeAll() { hideKeyboard(ctx, etText); hide(); currentTags = null }
         fun store(draft: Boolean) {
             val id = bookId
             val q = etText.text.toString().trim()
-            if (id == null) { Toast.makeText(ctx, "Выбери книгу", Toast.LENGTH_SHORT).show(); return }
-            if (q.isEmpty()) { Toast.makeText(ctx, "Цитата пустая", Toast.LENGTH_SHORT).show(); return }
+            if (id == null) { toast(ctx, "Выбери книгу"); return }
+            if (q.isEmpty()) { toast(ctx, "Цитата пустая"); return }
             val tags = Quote.joinTags(Quote.parseTags(etTags.text.toString()))
             closeAll()
             scope.launch {
                 withContext(Dispatchers.IO) {
                     AppDatabase.getInstance(ctx).quoteDao().insert(Quote(bookId = id, text = q, tags = tags, draft = draft))
                 }
-                Toast.makeText(ctx, if (draft) "Цитата сохранена, поправить — в «цитатах»" else "Цитата сохранена", Toast.LENGTH_SHORT).show()
+                toast(ctx, if (draft) "Цитата сохранена, поправить — в «цитатах»" else "Цитата сохранена")
             }
         }
         save.setOnClickListener { store(false) }
@@ -239,8 +429,16 @@ object QuoteOverlay {
         try {
             (ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager).addView(holder, params)
             current = holder
-        } catch (e: Exception) {
-            Diag.set(ctx, Diag.ERROR, "${Diag.time()} цитата, окно: $e")
+        } catch (ex: Exception) {
+            Diag.set(ctx, Diag.ERROR, "${Diag.time()} цитата, окно: $ex")
         }
     }
+
+    private var currentTags: EditText? = null
+
+    private fun hideKeyboard(ctx: Context, v: View) {
+        try { (ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(v.windowToken, 0) } catch (_: Exception) {}
+    }
+
+    private fun toast(ctx: Context, t: String) = Toast.makeText(ctx, t, Toast.LENGTH_SHORT).show()
 }

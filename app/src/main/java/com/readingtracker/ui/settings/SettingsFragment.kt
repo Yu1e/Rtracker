@@ -244,7 +244,11 @@ class SettingsFragment : Fragment() {
 
         b.swQuotes.setOnCheckedChangeListener(null)
         b.swQuotes.isChecked = Prefs.quotes(ctx)
-        b.swQuotes.setOnCheckedChangeListener { _, on -> Prefs.setQuotes(ctx, on) }
+        b.swQuotes.setOnCheckedChangeListener { _, on -> Prefs.setQuotes(ctx, on); buildLookAndGoals() }
+        b.swForcedQuotes.visibility = if (Prefs.quotes(ctx)) View.VISIBLE else View.GONE
+        b.swForcedQuotes.setOnCheckedChangeListener(null)
+        b.swForcedQuotes.isChecked = Prefs.forcedQuotes(ctx)
+        b.swForcedQuotes.setOnCheckedChangeListener { _, on -> Prefs.setForcedQuotes(ctx, on) }
     }
 
     // ── Ярлыки читалок ────────────────────────────────────────────────────────

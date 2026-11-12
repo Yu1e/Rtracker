@@ -97,4 +97,8 @@ object Prefs {
     /** Цитаты через трекер: пузырёк после «Копировать» в читалке. */
     fun quotes(c: Context): Boolean = p(c).getBoolean("quotes", true)
     fun setQuotes(c: Context, v: Boolean) { p(c).edit().putBoolean("quotes", v).apply() }
+
+    /** Форсированные цитаты: меню выделения появилось — трекер сам жмёт «Копировать» и открывает окно. */
+    fun forcedQuotes(c: Context): Boolean = p(c).getBoolean("forced_quotes", false)
+    fun setForcedQuotes(c: Context, v: Boolean) { p(c).edit().putBoolean("forced_quotes", v).apply() }
 }

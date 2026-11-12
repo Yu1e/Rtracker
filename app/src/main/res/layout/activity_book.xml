@@ -306,6 +306,14 @@
             style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
         <Button
+            android:id="@+id/btnAddQuote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="＋ цитата"
+            android:visibility="gone"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
+
+        <Button
             android:id="@+id/btnOpenReader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

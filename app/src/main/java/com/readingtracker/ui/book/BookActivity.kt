@@ -145,6 +145,16 @@ class BookActivity : AppCompatActivity() {
             b.btnQuotes.visibility = if (nQuotes > 0) View.VISIBLE else View.GONE
             b.btnQuotes.text = "цитаты: $nQuotes"
             b.btnQuotes.setOnClickListener { com.readingtracker.ui.quotes.QuotesActivity.open(this@BookActivity, bk.id) }
+            b.btnAddQuote.visibility = View.VISIBLE
+            b.btnAddQuote.setOnClickListener {
+                com.readingtracker.ui.quotes.QuoteDialog.show(this@BookActivity, bk.id) {
+                    lifecycleScope.launch {
+                        val n = db.quoteDao().countForBook(bk.id)
+                        b.btnQuotes.visibility = if (n > 0) View.VISIBLE else View.GONE
+                        b.btnQuotes.text = "цитаты: $n"
+                    }
+                }
+            }
 
             val launch = packageManager.getLaunchIntentForPackage(bk.appPackage)
             if (bk.appPackage == Book.PKG_ONLINE && bk.url.isNotBlank()) {

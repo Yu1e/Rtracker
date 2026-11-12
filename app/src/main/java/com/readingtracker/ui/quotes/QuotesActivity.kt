@@ -93,6 +93,11 @@ class QuotesActivity : AppCompatActivity() {
         }
         head.addView(titleView, LinearLayout.LayoutParams(0, -2, 1f))
         head.addView(TextView(this).apply {
+            text = "＋ цитата"; textSize = 14f; setTextColor(col(R.color.rt_ink))
+            setPadding(px(8f), px(8f), px(8f), px(8f))
+            setOnClickListener { QuoteDialog.show(this@QuotesActivity, onlyBook) { load() } }
+        })
+        head.addView(TextView(this).apply {
             text = "⤓ в Obsidian"; textSize = 14f; setTextColor(col(R.color.rt_ink))
             setPadding(px(12f), px(8f), px(4f), px(8f))
             setOnClickListener {
@@ -165,7 +170,7 @@ class QuotesActivity : AppCompatActivity() {
         val shown = visible()
         if (shown.isEmpty()) {
             list.addView(text(if (quotes.isEmpty())
-                "Цитат пока нет. В читалке выдели текст и нажми «Копировать» — трекер предложит сохранить цитату."
+                "Цитат пока нет. В читалке выдели текст и нажми «Копировать» — трекер предложит сохранить цитату. Или «＋ цитата» вверху — вписать вручную."
                 else "Ничего не нашлось.", 14f, col(R.color.rt_ink2)).apply { setPadding(0, px(16f), 0, 0) })
             return
         }
