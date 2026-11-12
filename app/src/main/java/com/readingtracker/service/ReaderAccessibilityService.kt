@@ -83,6 +83,7 @@ class ReaderAccessibilityService : AccessibilityService() {
             notificationTimeout = 150
         }
         ActivitySignal.accessibilityConnected = true
+        QuoteCatcher.names = tracked
         ScoutLog.append(this, "=== служба подключена, читалки: ${tracked.values.joinToString()}")
     }
 
@@ -309,6 +310,11 @@ class ReaderAccessibilityService : AccessibilityService() {
             }
         }
 
+        // Карточка книги (журнал 8 ноября): bookHeaderTitle — название, bookHeaderAuthors — автор
+        val headTitle = ids(pkg, root, "bookHeaderTitle").firstNotNullOfOrNull { it.str() }
+        val headAuthor = ids(pkg, root, "bookHeaderAuthors").firstNotNullOfOrNull { it.str() }
+        if (headTitle != null && headAuthor != null) ReaderScreen.rememberAuthor(this, headTitle, headAuthor)
+
         // Обложки в библиотеке: название и автор
         for ((isDesc, v) in nodes) {
             if (!isDesc) continue
@@ -394,7 +400,9 @@ class ReaderAccessibilityService : AccessibilityService() {
                 event.text?.forEach { t -> t?.toString()?.takeIf { it.isNotBlank() }?.let { parts += it } }
                 event.contentDescription?.toString()?.takeIf { it.isNotBlank() }?.let { parts += "desc=$it" }
                 event.source?.let { collect(it, parts, 0, 25) }
-                ScoutLog.append(this, "[$app] КЛИК ${event.className}: ${parts.distinct().joinToString(" | ").take(800)}")
+                // Нажатие на абзац книги: хватит начала абзаца
+                val short = parts.filter { !isFootnote(it) }.map { if (it.length > 80) it.take(80) + "…" else it }
+                ScoutLog.append(this, "[$app] КЛИК ${event.className}: ${short.distinct().joinToString(" | ").take(800)}")
             }
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
@@ -404,12 +412,22 @@ class ReaderAccessibilityService : AccessibilityService() {
                 val now = System.currentTimeMillis()
                 if (now - (lastDumpAt[pkg] ?: 0) < 4000) return
                 val root = rootInActiveWindow ?: return
-                val parts = mutableListOf<String>()
-                collect(root, parts, 0, 80)
-                // Яндекс Книги отдают службе текст книги абзацами — страницы книги в журнал не пишем
-                if (app == "Яндекс Книги" && event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
-                    parts.count { it.length > 100 } >= 4) return
+                // Сверху наше окно (пузырёк цитаты, форма книги) — это не экран читалки
+                if (root.packageName?.toString() == packageName) return
+                val all = mutableListOf<String>()
+                collect(root, all, 0, 300)
+                // Текст книги («Свет», Яндекс Книги отдают его абзацами) в журнал не пишем: он вытеснял всё остальное.
+                // Остаются подписи, меню, названия.
+                val book = all.count { isBookNoise(it) }
+                var kept = all.filter { !isBookNoise(it) }
+                // Страница книги на экране: строки без id (обрывки абзацев между сносками) тоже текст книги —
+                // оставляем первые шесть (название, глава) и всё с id или описанием
+                if (book >= 4) kept = kept.filterIndexed { i, s -> i < 6 || s.startsWith("desc: ") || WITH_ID.containsMatchIn(s) }
+                val parts = kept.take(80).toMutableList()
+                if (parts.isEmpty() && book > 0) return
+                // Число пропущенных строк меняется от страницы к странице — в сравнение с прошлой записью не входит
                 val hash = parts.hashCode()
+                if (book > 0) parts += "(строк текста книги пропущено: $book)"
                 if (hash == lastDumpHash[pkg]) return
                 lastDumpAt[pkg] = now
                 lastDumpHash[pkg] = hash
@@ -419,6 +437,18 @@ class ReaderAccessibilityService : AccessibilityService() {
             }
         }
     }
+
+    private val YANDEX_PARA = Regex("^e-[A-Za-z0-9]{4}: ")
+    private val WITH_ID = Regex("^[A-Za-z_][A-Za-z0-9_]*( desc)?: ")
+    private val FOOTNOTE = Regex("^(endnote\\d+-\\d+(-backlink)? ?(desc)?:|(desc: )?\\[?\\d{1,3}\\]?$)")
+
+    /** Строка разведки — текст книги: длинный абзац, абзац Яндекс Книг (id e-XXXX), сноска «Света». */
+    private fun isBookNoise(part: String): Boolean {
+        val value = part.substringAfter(": ", part)
+        return value.length > 100 || isFootnote(part)
+    }
+
+    private fun isFootnote(part: String) = YANDEX_PARA.containsMatchIn(part) || FOOTNOTE.containsMatchIn(part.trim())
 
     /** Собирает тексты и подписи узлов: «id: текст». */
     private fun collect(node: AccessibilityNodeInfo, out: MutableList<String>, depth: Int, limit: Int) {
